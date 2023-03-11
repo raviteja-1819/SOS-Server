@@ -1,10 +1,6 @@
-import {
-    firebaseApp,
-    firebaseAuth,
-    fibaseDb
-} from './firebase/index.js'
-import express from 'express';
-import cors from 'cors';
+const fibaseDb = require('./firebase/index.js');
+const express = require('express');
+const cors = require('cors');
 
 var app = express()
 
@@ -18,6 +14,9 @@ app.use(express.urlencoded({
     extended: false
 }));
 
+app.get("/", (req, res) => {
+    res.send("Its Working ")
+})
 
 app.get("/users", async(req, res) => {
     var userId = req.headers["auth"]

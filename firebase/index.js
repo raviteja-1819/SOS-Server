@@ -1,14 +1,10 @@
-import {
-    initializeApp
-} from "firebase-admin/app";
-import admin from "firebase-admin";
-import {
-    getAuth
-} from "firebase-admin/auth";
+const admin = require("firebase-admin");
+const serviceAccount = require("./account-creds.json");
+// import firebaseAccountCredentials from '../serviceAccountCredentials.json'
 // var admin = require("firebase-admin")
-import serviceAccount from "./aid-project-af0a9-firebase-adminsdk-3qv20-a21b19fcda.json"assert { type: 'json' };
-// var serviceAccount = require("/aid-project-af0a9-firebase-adminsdk-3qv20-a21b19fcda.json");
-import { getFirestore, Timestamp, FieldValue } from 'firebase-admin/firestore';
+// const serviceAccount = firebaseAccountCredentials as admin.ServiceAccount;
+// var serviceAccount = require("./account-creds.json");
+// import { getFirestore, Timestamp, FieldValue } from 'firebase-admin/firestore';
 const firebaseConfig = {
     credential: admin.credential.cert(serviceAccount),
     apiKey: "AIzaSyABGXuI7VnEFPcneS804Y_zhNMHhwRPfeo",
@@ -21,9 +17,9 @@ const firebaseConfig = {
     measurementId: "G-XHL141MHXF"
 };
 
-export const firebaseApp = initializeApp(firebaseConfig);
+admin.initializeApp(firebaseConfig);
 
-export const firebaseAuth = getAuth(firebaseApp);
-
-export const fibaseDb = getFirestore(firebaseApp);
+const firebaseAuth = admin.auth();
+const firebaseDb = admin.firestore();
+module.exports = firebaseDb;
 console.log("Firebase Initialized");

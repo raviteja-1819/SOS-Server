@@ -513,5 +513,5 @@ app.get('/partners', async(req, res) => {
 app.get('/dashboard', async(req, res) => {
 
 })
-
+console.log(process.env.PORT);
 app.listen(process.env.PORT || 3000)

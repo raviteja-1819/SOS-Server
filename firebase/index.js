@@ -1,10 +1,5 @@
 const admin = require("firebase-admin");
 const serviceAccount = require("./account-creds.json");
-// import firebaseAccountCredentials from '../serviceAccountCredentials.json'
-// var admin = require("firebase-admin")
-// const serviceAccount = firebaseAccountCredentials as admin.ServiceAccount;
-// var serviceAccount = require("./account-creds.json");
-// import { getFirestore, Timestamp, FieldValue } from 'firebase-admin/firestore';
 const firebaseConfig = {
     credential: admin.credential.cert(serviceAccount),
     apiKey: "AIzaSyABGXuI7VnEFPcneS804Y_zhNMHhwRPfeo",

@@ -15,6 +15,7 @@ app.use(express.urlencoded({
 }));
 
 app.get("/", (req, res) => {
+    console.log("Hello threre");
     res.send(`<!DOCTYPE html>
     <html>
     <style>

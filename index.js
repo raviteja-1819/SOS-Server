@@ -131,7 +131,24 @@ app.get("/users", async(req, res) => {
         }
     })
 })
+app.get("/callbacks", async(req, res) => {
+    var userId = req.headers["auth"]
+    var users = [];
+    await fibaseDb.collection('call_back_req').get()
+        .then(querySnapshot => {
+            querySnapshot.docs.map(doc => {
+                // console.log('LOG 1', doc.data());
+                users.push(doc.data())
+                return doc.data();
+            });
+        });
 
+    res.send({
+        "data": {
+            "call_back_req": users
+        }
+    })
+})
 app.post('/anonymous', async(req, res) => {
     var userId = req.headers["auth"]
     console.log(userId)

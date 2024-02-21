@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Supporters Upload</title>
+</head>
+<body>
+    <h1>Supporters Upload</h1>
+    <input type="file" id="fileInput" accept="image/*">
+    <input type="text" id="brandnameInput" placeholder="Brand Name">
+    <input type="text" id="urlInput" placeholder="URL">
+    <button onclick="uploadSupporter()">Upload Supporter</button>
+    
+    <!-- Firebase SDK -->
+    <script src="https://www.gstatic.com/firebasejs/9.6.2/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.2/firebase-auth.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.2/firebase-firestore.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.2/firebase-storage.js"></script>
+
+    <!-- Firebase Admin Configuration -->
+    <script src="firebase/index.js"></script>
+
+    <!-- Your JavaScript File -->
+    <script src="upload.js"></script>
+</body>
+</html>

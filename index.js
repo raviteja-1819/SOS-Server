@@ -530,5 +530,67 @@ app.get('/partners', async(req, res) => {
 app.get('/dashboard', async(req, res) => {
 
 })
+
+// trails on dummy collectiom 
+app.get('/dummy', async(req, res) => {
+    var userId = req.headers["auth"]
+    var names = [];
+    console.log(userId)
+    var data = await fibaseDb.collection("dummy").doc(userId).get()
+    await fibaseDb.collection('dummy').get()
+        .then(querySnapshot => {
+            querySnapshot.docs.map(doc => {
+                // console.log('LOG 1', doc.data());
+                names.push(doc.data())
+                return doc.data();
+            });
+        });
+    
+    res.send({
+        "data": {
+            "single-user": data.data(),
+            "all-names": names
+        }
+    })
+    
+})
+
+app.post('/dummy',async(req,res)=>
+{
+
+    try {
+        // Get the user ID from headers
+        var userId = req.headers["auth"];
+        console.log(userId);
+        // Extract the name from the request body
+        var name = req.body["name"];
+
+        if (!userId || !name) {
+            return res.status(400).json({ error: 'User ID and name are required in the request.' });
+        }
+
+        // Create data object with the name
+        var data = {
+            "name": name
+        };
+
+        // Add a new document to the "dummy" collection with the provided user ID
+        await fibaseDb.collection("dummy").doc(userId).set(data);
+
+        res.status(201).json({ message: 'Document created successfully', data });
+    } catch (error) {
+        console.error('Error creating document:', error);
+        res.status(500).json({ error: 'Internal server error' });
+    }
+
+})
+
+// my code 
+
+app.post('/signup',async(req,res)=>
+{
+    
+})
+
 console.log(process.env.PORT);
 app.listen(process.env.PORT || 3000)

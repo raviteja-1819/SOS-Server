@@ -1,6 +1,7 @@
 const admin = require("firebase-admin");
+const uuid = require('uuid').v4
+const multer = require("multer");
 const serviceAccount = require("./account-creds.json");
-const { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword } = require("firebase/auth");
 const firebaseConfig = {
     credential: admin.credential.cert(serviceAccount),
     apiKey: "AIzaSyABGXuI7VnEFPcneS804Y_zhNMHhwRPfeo",
@@ -17,7 +18,7 @@ admin.initializeApp(firebaseConfig);
 
 const firebaseAuth = admin.auth();
 const firebaseDb = admin.firestore();
-const storage = admin.storage();
+const bucket = admin.storage().bucket();
 module.exports = 
-{firebaseDb,firebaseAuth,getAuth,signInWithEmailAndPassword,createUserWithEmailAndPassword,storage}
+{firebaseDb,firebaseAuth,uuid,multer,bucket}
 console.log("Firebase Initialized");

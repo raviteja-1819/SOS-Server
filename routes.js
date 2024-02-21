@@ -1,7 +1,7 @@
 
 const express = require('express');
 const cors = require('cors');
-const { firebaseAuth, firebaseDb, storage } = require('./firebase/index.js');
+const { firebaseAuth, firebaseDb,multer,uuid,bucket} = require('./firebase/index.js');
 // const {signInWithEmailAndPassword, createUserWithEmailAndPassword,getAuth } = require("firebase/auth");
 const app = express();
 
@@ -14,6 +14,299 @@ let emailRegex = /^\w+([\.-]?\w+)*@\w+([\.-]?\w+)*(\.\w{2,3})+$/; // regex for e
 let passwordRegex = /^(?=.*\d)(?=.*[a-z])(?=.*[A-Z]).{6,20}$/; // regex for password
 let mobileNumberRegex = /^[0-9]{10}$/;
 let bloodGroupRegex = /^(A|B|AB|O)[+-]$/;
+
+const storage = multer.memoryStorage();
+const upload = multer({ storage :storage });
+
+app.post('/add-patners', upload.single('image'), async (req, res) => {
+    if(!req.file)
+    {
+        res.status(400).send('No file uploaded');
+    }
+    const brandname = req.body.brandname; // Assuming brandname is sent as part of the request body
+    const url = req.body.url; 
+    const metadata =
+    {
+        metadata:
+        {
+            firebaseStorageDownloadTokens: uuid()
+        },
+        contentType: req.file.mimetype,
+        cacheControl : 'public, max-age=31536000'
+    };
+    const blob = bucket.file(`patners/${req.file.originalname}`);
+    const blobStream = blob.createWriteStream({
+        metadata:metadata,
+        gzip :true,
+    });
+    blobStream.on('error', (err) => {
+        return res.status(500).json({error:"unable to upload image"})
+    });
+
+    blobStream.on('finish', async () => {
+        const imageUrl = `https://firebasestorage.googleapis.com/${bucket.name}/o/${blob.name}`;
+        try {
+            const supporterRef = firebaseDb.collection('Patners').doc();
+            await supporterRef.set({
+                brandname: brandname,
+                url: url,
+                image: imageUrl
+            });
+            
+            return res.status(201).json({ imageUrl, brandname, url });
+        } catch (error) {
+            console.error('Error adding patner:', error);
+            return res.status(500).json({ error: "Failed to add patner. Please try again." });
+        }
+        
+    });
+
+    blobStream.end(req.file.buffer);
+})
+
+app.get('/get-patners', async (req, res) => {
+    try {
+        const supportersSnapshot = await firebaseDb.collection('Patners').get();
+        const supporters = [];
+        supportersSnapshot.forEach((doc) => {
+            supporters.push({
+                id: doc.id,
+                ...doc.data()
+            });
+        });
+        return res.status(200).json({ supporters });
+    } catch (error) {
+        console.error('Error fetching patners:', error);
+        return res.status(500).json({ error: "Failed to fetch patners. Please try again." });
+    }
+});
+
+app.put('/patners/:id', upload.single('image'), async (req, res) => {
+    try {
+        const supporterId = req.params.id;
+        const { brandname, url } = req.body;
+
+        if (!brandname && !url && !req.file) {
+            return res.status(400).json({ error: 'No fields to update.' });
+        }
+
+        let imageUrl = '';
+
+        // Check if a new image is uploaded
+        if (req.file) {
+            const metadata = {
+                metadata: {
+                    firebaseStorageDownloadTokens: uuid()
+                },
+                contentType: req.file.mimetype,
+                cacheControl: 'public, max-age=31536000'
+            };
+
+            const blob = bucket.file(`patners/${req.file.originalname}`);
+            const blobStream = blob.createWriteStream({
+                metadata: metadata,
+                gzip: true,
+            });
+
+            blobStream.on('error', (err) => {
+                console.error('Error uploading image:', err);
+                return res.status(500).json({ error: 'Unable to upload image.' });
+            });
+
+            blobStream.on('finish', async () => {
+                imageUrl = `https://firebasestorage.googleapis.com/${bucket.name}/o/${blob.name}`;
+                updateSupporter();
+            });
+
+            blobStream.end(req.file.buffer);
+        } else {
+            updateSupporter();
+        }
+        async function updateSupporter() {
+            const supporterRef = firebaseDb.collection('Patners').doc(supporterId);
+
+            const supporterDoc = await supporterRef.get();
+            if (!supporterDoc.exists) {
+                return res.status(404).json({ error: 'Patner not found.' });
+            }
+
+            const updateData = {};
+
+            if (brandname) {
+                updateData.brandname = brandname;
+            }
+
+            if (url) {
+                updateData.url = url;
+            }
+
+            if (imageUrl) {
+                updateData.image = imageUrl;
+            }
+
+            await supporterRef.update(updateData);
+
+            return res.status(200).json({ message: 'patner updated successfully.' });
+        }
+    } catch (error) {
+        console.error('Error updating patner:', error);
+        return res.status(500).json({ error: 'Failed to update patner.' });
+    }
+});
+
+app.post('/add-supporters', upload.single('image'), async (req, res) => {
+    if(!req.file)
+    {
+        res.status(400).send('No file uploaded');
+    }
+    const firstname = req.body.firstname; // Assuming brandname is sent as part of the request body
+    const lastname = req.body.lastname; 
+    const designation = req.body.designation;
+    const area = req.body.area;
+    const metadata =
+    {
+        metadata:
+        {
+            firebaseStorageDownloadTokens: uuid()
+        },
+        contentType: req.file.mimetype,
+        cacheControl : 'public, max-age=31536000'
+    };
+    const blob = bucket.file(`supporters/${req.file.originalname}`);
+    const blobStream = blob.createWriteStream({
+        metadata:metadata,
+        gzip :true,
+    });
+    blobStream.on('error', (err) => {
+        return res.status(500).json({error:"unable to upload image"})
+    });
+
+    blobStream.on('finish', async () => {
+        const imageUrl = `https://firebasestorage.googleapis.com/${bucket.name}/o/${blob.name}`;
+        try {
+            const supporterRef = firebaseDb.collection('Supporters').doc();
+            await supporterRef.set({
+                firstname: firstname,
+                lastname: lastname,
+                designation: designation,
+                area: area,
+                image: imageUrl
+            });
+            
+            return res.status(201).json({ firstname, lastname, designation, area, image: imageUrl });
+        } catch (error) {
+            console.error('Error adding supporter:', error);
+            return res.status(500).json({ error: "Failed to add supporter. Please try again." });
+        }
+        
+    });
+
+    blobStream.end(req.file.buffer);
+})
+
+app.get('/get-supporters', async (req, res) => {
+    try {
+        const supportersSnapshot = await firebaseDb.collection('Supporters').get();
+        const supporters = [];
+        supportersSnapshot.forEach((doc) => {
+            supporters.push({
+                id: doc.id,
+                ...doc.data()
+            });
+        });
+        return res.status(200).json({ supporters });
+    } catch (error) {
+        console.error('Error fetching Supporters:', error);
+        return res.status(500).json({ error: "Failed to fetch supporters. Please try again." });
+    }
+});
+
+app.put('/supporters/:id', upload.single('image'), async (req, res) => {
+    try {
+        const supporterId = req.params.id;
+        const { firstName, lastName, designation, area, contribution} = req.body;
+
+        if (!firstName && !lastName && !designation && !area && !contribution && !req.file) {
+            return res.status(400).json({ error: 'No fields to update.' });
+        }
+
+        let imageUrl = '';
+
+        // Check if a new image is uploaded
+        if (req.file) {
+            const metadata = {
+                metadata: {
+                    firebaseStorageDownloadTokens: uuid()
+                },
+                contentType: req.file.mimetype,
+                cacheControl: 'public, max-age=31536000'
+            };
+
+            const blob = bucket.file(`supporters/${req.file.originalname}`);
+            const blobStream = blob.createWriteStream({
+                metadata: metadata,
+                gzip: true,
+            });
+
+            blobStream.on('error', (err) => {
+                console.error('Error uploading image:', err);
+                return res.status(500).json({ error: 'Unable to upload image.' });
+            });
+
+            blobStream.on('finish', async () => {
+                imageUrl = `https://firebasestorage.googleapis.com/${bucket.name}/o/${blob.name}`;
+                updateSupporter();
+            });
+
+            blobStream.end(req.file.buffer);
+        } else {
+            updateSupporter();
+        }
+
+        async function updateSupporter() {
+            const supporterRef = firebaseDb.collection('Supporters').doc(supporterId);
+
+            const supporterDoc = await supporterRef.get();
+            if (!supporterDoc.exists) {
+                return res.status(404).json({ error: 'Supporter not found.' });
+            }
+
+            const updateData = {};
+
+            if (firstName) {
+                updateData.firstName = firstName;
+            }
+
+            if (lastName) {
+                updateData.lastName = lastName;
+            }
+
+            if (designation) {
+                updateData.designation = designation;
+            }
+
+            if (area) {
+                updateData.area = area;
+            }
+
+            if (contribution) {
+                updateData.contribution = contribution;
+            }
+
+            if (imageUrl) {
+                updateData.image = imageUrl;
+            }
+
+            await supporterRef.update(updateData);
+
+            return res.status(200).json({ message: 'Supporter updated successfully.' });
+        }
+    } catch (error) {
+        console.error('Error updating supporter:', error);
+        return res.status(500).json({ error: 'Failed to update supporter.' });
+    }
+});
+
 // Get all users route // working 
 // this works as new profile signups dashboard 
 app.get('/get-users', async (req, res) => {

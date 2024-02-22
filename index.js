@@ -1,7 +1,7 @@
 const fibaseDb = require('./firebase/index.js');
 const express = require('express');
 const cors = require('cors');
-
+const port = require('./port.js')
 var app = express()
 
 app.use(cors())
@@ -592,5 +592,5 @@ app.post('/signup',async(req,res)=>
     
 })
 
-console.log(process.env.PORT);
-app.listen(process.env.PORT || 3000)
+console.log(port);
+app.listen(port);

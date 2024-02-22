@@ -18,6 +18,64 @@ let bloodGroupRegex = /^(A|B|AB|O)[+-]$/;
 const storage = multer.memoryStorage();
 const upload = multer({ storage :storage });
 
+// Route to get pending cases and total number of cases for blood emergency
+app.get('/blood-emergency', async (req, res) => {
+    try {
+        const bloodEmergencyRef = firebaseDb.collection('Cases').where('category', '==', 'blood emergency');
+        const snapshot = await bloodEmergencyRef.get();
+        
+        const pendingCases = snapshot.docs.filter(doc => !doc.data().resolved).length;
+        const totalCases = snapshot.docs.length;
+
+        return res.status(200).json({ pendingCases, totalCases });
+    } catch (error) {
+        console.error('Error fetching blood emergency cases:', error);
+        return res.status(500).json({ error: 'Failed to fetch blood emergency cases.' });
+    }
+});
+
+// Similar routes for other categories: blood requirement, anonymous report, reported issues
+// Replace 'blood emergency' with appropriate category names in the below routes
+
+// Route to get pending cases and total number of cases for blood requirement
+// Route to get all cases as total cases and pending cases
+// Route to get total cases and pending cases for different categories
+app.get('/cases/:category', async (req, res) => {
+    const category = req.params.category;
+
+    try {
+        let collectionRef;
+
+        // Determine the collection based on the category
+        switch (category) {
+            case 'be':
+                collectionRef = firebaseDb.collection('Blood Em');
+                break;
+            case 'ar':
+                collectionRef = firebaseDb.collection('Ano Report');
+                break;
+            case 'cr':
+                collectionRef = firebaseDb.collection('Report an issue');
+                break;
+            case 'br':
+                collectionRef = firebaseDb.collection('BloodReq');
+                break;
+            default:
+                return res.status(400).json({ error: 'Invalid category.' });
+        }
+
+        // Fetch all cases and count pending cases
+        const snapshot = await collectionRef.get();
+        const totalCases = snapshot.docs.length;
+        const pendingCases = snapshot.docs.filter(doc => doc.data().status === 'pending').length;
+
+        return res.status(200).json({ totalCases, pendingCases });
+    } catch (error) {
+        console.error(`Error fetching ${category} cases:`, error);
+        return res.status(500).json({ error: `Failed to fetch ${category} cases.` });
+    }
+});
+
 app.post('/add-patners', upload.single('image'), async (req, res) => {
     if(!req.file)
     {
@@ -588,6 +646,94 @@ app.post('/bloodemergency', async (req, res) => {
         res.status(500).json({ error: 'Failed to create blood emergency record.' });
     }
 });
+
+// blood requirement 
+app.post('/bloodreq', async (req, res) => {
+    try {
+        const {
+            userId,
+            bloodType,
+            hospitalAddress,
+            location,
+            pincode,
+            mobileNumber,
+            name,
+            hospitalName,
+            status,
+            purposeOfBlood
+        } = req.body;
+
+        // Fetch user details to ensure the user exists
+        const userDoc = await firebaseDb.collection('users').doc(userId).get();
+        if (!userDoc.exists) {
+            return res.status(404).json({ error: 'User not found.' });
+        }
+
+        // Validate input fields for blood emergency
+        if (!bloodType || !hospitalAddress || !location || !pincode || !mobileNumber || !name || !hospitalName || !status || !purposeOfBlood) {
+            return res.status(400).json({ error: 'All fields are required for blood requirement.' });
+        }
+
+        // Create a new blood emergency record with createdAt timestamp
+        const bloodEmergencyData = {
+            userId,
+            bloodType,
+            hospitalAddress,
+            location,
+            pincode,
+            mobileNumber,
+            name,
+            hospitalName,
+            status,
+            purposeOfBlood
+            // createdAt: admin.firestore.FieldValue.serverTimestamp(), // Use admin.firestore.FieldValue
+        };
+
+        // Add the blood emergency record to the Blood Em collection
+        const bloodEmergencyRef = await firebaseDb.collection('bloodReq').add(bloodEmergencyData)
+            .catch(error => {
+                console.error('Error adding record:', error);
+                res.status(500).json({ error: 'Failed to add  record.' });
+            });
+
+        if (bloodEmergencyRef) {
+            res.status(201).json({ message: 'Blood requirement record created successfully.', id: bloodEmergencyRef.id });
+        } else {
+            res.status(500).json({ error: 'Failed to create record.' });
+        }
+    } catch (error) {
+        console.error('Error creating blood requirement record:', error);
+        res.status(500).json({ error: 'Failed to create blood requirement record.' });
+    }
+});
+
+app.get('/blood-req', async (req, res) => {
+    try {
+      // Query Blood Em collection to get all documents
+      const bloodEmergencySnapshot = await firebaseDb.collection('bloodReq').get();
+  
+      const usersDetails = [];
+      // Iterate over blood emergency records
+      bloodEmergencySnapshot.forEach(doc => {
+          const bloodEmergencyData = doc.data();
+          // Extract specific details and add them to the array
+          const userDetails = {
+              // userId: bloodEmergencyData.userId,
+              name: bloodEmergencyData.name,
+              hospitalName: bloodEmergencyData.hospitalName,
+              location: bloodEmergencyData.location,
+              bloodType: bloodEmergencyData.bloodType,
+              status: bloodEmergencyData.status
+          };
+          usersDetails.push(userDetails);
+      });
+  
+      res.status(200).json(usersDetails);
+  } catch (error) {
+      console.error('Error fetching user details from blood requirements:', error);
+      res.status(500).json({ error: 'Failed to fetch user details from blood requirements.' });
+  }
+  });
 app.post('/anonymousreport', async (req, res) => {
     try {
         const {
@@ -639,6 +785,43 @@ app.post('/anonymousreport', async (req, res) => {
     }
 });
 
+app.get('/blood-req/:id', async (req, res) => {
+    try {
+        const reportId = req.params.id;
+
+        // Fetch the anonymous report document from the 'AnonymousReports' collection
+        const reportDoc = await firebaseDb.collection('bloodReq').doc(reportId).get();
+
+        // Check if the report exists
+        if (!reportDoc.exists) {
+            return res.status(404).json({ error: 'Anonymous report not found.' });
+        }
+
+        const reportData = reportDoc.data();
+        const userId = reportData.userId;
+
+        // Fetch the user document associated with the report
+        const userDoc = await firebaseDb.collection('users').doc(userId).get();
+
+        // Check if the user exists
+        if (!userDoc.exists) {
+            return res.status(404).json({ error: 'User not found.' });
+        }
+
+        const userData = userDoc.data();
+
+        // Construct the response object containing both report and user details
+        const response = {
+            Report: reportData,
+            user: userData,
+        };
+
+        res.status(200).json(response);
+    } catch (error) {
+        console.error('Error fetching report details:', error);
+        res.status(500).json({ error: 'Failed to fetch report details.' });
+    }
+});
 // Fetch all blood emergency records
 app.get('/blood-emergencies', async (req, res) => {
   try {

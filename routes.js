@@ -1,6 +1,7 @@
 
 const express = require('express');
 const cors = require('cors');
+
 const { firebaseAuth, firebaseDb} = require('./firebase/index.js');
 // const {signInWithEmailAndPassword, createUserWithEmailAndPassword,getAuth } = require("firebase/auth");
 const app = express();
@@ -394,7 +395,44 @@ app.get('/issue-reports', async (req, res) => {
         res.status(500).json({ error: 'Failed to fetch issue reports.' });
     }
 });
+app.get("/callbacks", async(req, res) => {
+    var userId = req.headers["auth"]
+    var users = [];
+    await firebaseDb.collection('call_back_req').get()
+        .then(querySnapshot => {
+            querySnapshot.docs.map(doc => {
+                // console.log('LOG 1', doc.data());
+                users.push(doc.data())
+                return doc.data();
+            });
+        });
 
+    res.send({
+        "data": {
+            "call_back_req": users
+        }
+    })
+})
+app.post('/callbacks', async (req, res)=>{
+    
+        const {
+            date,
+            time,
+            mobileNumber,
+            subject,
+            topic,
+        }=req.body;
+   
+    const dateTime = new Date(`${date}T${time}`);
+    const DateTime = `${dateTime.toDateString()} ${dateTime.toLocaleTimeString()}`;
+    console.log('Submitted Data:');
+    console.log('Date & Time:', DateTime);
+    console.log('Mobile Number:', mobileNumber);
+    console.log('Subject:', subject);
+    console.log('Topic:', topic);
+    
+    res.send('Callback request submitted successfully!');
+});
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
     console.log(`Server is running on port ${PORT}`);

@@ -583,14 +583,7 @@ app.post('/dummy',async(req,res)=>
         res.status(500).json({ error: 'Internal server error' });
     }
 
-})
-
-// my code 
-
-app.post('/signup',async(req,res)=>
-{
-    
-})
+});
 
 console.log(port);
 app.listen(port);

@@ -433,6 +433,37 @@ app.post('/callbacks', async (req, res)=>{
     
     res.send('Callback request submitted successfully!');
 });
+//adding and displaying emergency contacts
+let emergencyContacts = {
+    person1: [],
+    person2: []
+  };
+  
+  app.use(express.json());
+  
+  app.post('/add-contact/:person', (req, res) => {
+    const person = req.params.person;
+    const { name, relation, phoneNumber } = req.body;
+  
+    if (!name || !relation || !phoneNumber) {
+      return res.status(400).json({ error: 'Name, Relation, and Phone Number are required' });
+    }
+  
+    if (!emergencyContacts[person]) {
+      return res.status(404).json({ error: 'Person not found' });
+    }
+  
+    emergencyContacts[person].push({ name, relation, phoneNumber });
+    res.status(201).json({ message: `Emergency contact added for ${person}` });
+  });
+  
+  app.get('/contacts/:person', (req, res) => {
+    const person = req.params.person;
+    if (!emergencyContacts[person]) {
+      return res.status(404).json({ error: 'Person not found' });
+    }
+    res.json(emergencyContacts[person]);
+  });
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
     console.log(`Server is running on port ${PORT}`);

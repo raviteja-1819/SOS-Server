@@ -177,31 +177,33 @@ app.get('/user/:uid', async (req, res) => {
 
 let userData = {
     username: 'ravi',
-    password: 'Ravi1819' 
+    password: 'ravi1819' 
   };
   app.post('/change-password', (req, res) => {
     try {
-      const { newPassword, confirmPassword } = req.body;
+      const { oldPassword, newPassword, confirmPassword } = req.body;
   
-      if (!newPassword || !confirmPassword) {
-        return res.status(400).json({ error: "Both new password and confirm password are required" });
+     
+      if (!oldPassword || !newPassword || !confirmPassword) {
+        return res.status(400).json({ error: "Old password, new password, and confirm password are required" });
       }
   
       if (newPassword !== confirmPassword) {
         return res.status(400).json({ error: "New password and confirm password don't match" });
       }
   
+      if (userData.password !== oldPassword) {
+        return res.status(400).json({ error: "Old password is incorrect" });
+      }
       userData.password = newPassword;
-      console.log("password changed successfully");
+       console.log("Password changed successfully");
   
       res.json({ message: 'Password changed successfully' });
     } catch (error) {
       console.error('Error:', error);
       res.status(500).json({ error: 'Internal Server Error' });
-      
     }
   });
-
 // blood emergency dashboard with person details and his emergency 
 app.get('/blood-emergency/:id', async (req, res) => {
   try {

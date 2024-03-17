@@ -120,7 +120,7 @@ app.post('/signup', async (req, res) => {
         res.status(500).json({ error: 'Failed to create user and profile.' });
     }
 });
-// Signin route // not working 
+// Signin route 
 app.post('/signin', async (req, res) => {
     try {
       const { email, password } = req.body;
@@ -173,6 +173,34 @@ app.get('/user/:uid', async (req, res) => {
       res.status(500).json({ error: 'Failed to retrieve user details.' });
   }
 });
+// change password after login
+
+let userData = {
+    username: 'ravi',
+    password: 'Ravi1819' 
+  };
+  app.post('/change-password', (req, res) => {
+    try {
+      const { newPassword, confirmPassword } = req.body;
+  
+      if (!newPassword || !confirmPassword) {
+        return res.status(400).json({ error: "Both new password and confirm password are required" });
+      }
+  
+      if (newPassword !== confirmPassword) {
+        return res.status(400).json({ error: "New password and confirm password don't match" });
+      }
+  
+      userData.password = newPassword;
+      console.log("password changed successfully");
+  
+      res.json({ message: 'Password changed successfully' });
+    } catch (error) {
+      console.error('Error:', error);
+      res.status(500).json({ error: 'Internal Server Error' });
+      
+    }
+  });
 
 // blood emergency dashboard with person details and his emergency 
 app.get('/blood-emergency/:id', async (req, res) => {

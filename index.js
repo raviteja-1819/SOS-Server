@@ -149,6 +149,7 @@ app.get("/callbacks", async(req, res) => {
         }
     })
 })
+// anonymous report
 app.post('/anonymous', async(req, res) => {
     var userId = req.headers["auth"]
     console.log(userId)
@@ -182,6 +183,7 @@ app.post('/anonymous', async(req, res) => {
 
 })
 
+// blood requirement
 app.post('/bloodrequirment', async(req, res) => {
     var userId = req.headers["auth"]
     console.log(userId)
@@ -217,6 +219,7 @@ app.post('/bloodrequirment', async(req, res) => {
 
 })
 
+// blood emergency
 app.post('/bloodemergency', async(req, res) => {
     var userId = req.headers["auth"]
     console.log(userId)
@@ -252,7 +255,7 @@ app.post('/bloodemergency', async(req, res) => {
 
 })
 
-
+// blood checkup
 app.post('/bloodcheckup', async(req, res) => {
     var userId = req.headers["auth"]
     console.log(userId)
@@ -287,7 +290,7 @@ app.post('/bloodcheckup', async(req, res) => {
 
 })
 
-
+// call backs
 app.post('/callback', async(req, res) => {
     var userId = req.headers["auth"]
     console.log(userId)
@@ -341,7 +344,7 @@ app.get('/callback', async(req, res) => {
     })
 
 })
-
+// issuereport
 app.post('/issuereport', async(req, res) => {
     var userId = req.headers["auth"]
     console.log(userId)
@@ -375,6 +378,7 @@ app.post('/issuereport', async(req, res) => {
 
 })
 
+// supporters
 app.get('/supporters', async(req, res) => {
     try {
         console.log(2)
@@ -411,6 +415,7 @@ app.get('/supporters', async(req, res) => {
     }
 })
 
+// solved cases
 app.post('/solvedCases', async(req, res) => {
     var userId = req.headers["auth"]
     console.log(userId)
@@ -490,6 +495,7 @@ app.get('/solvedCases', async(req, res) => {
     }
 })
 
+// partners
 app.get('/partners', async(req, res) => {
     try {
         console.log(2)
@@ -526,7 +532,7 @@ app.get('/partners', async(req, res) => {
     }
 })
 
-
+// dashboard
 app.get('/dashboard', async(req, res) => {
 
 })

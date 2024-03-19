@@ -176,8 +176,8 @@ app.get('/user/:uid', async (req, res) => {
 // change password after login
 
 let userData = {
-    username: 'ravi',
-    password: 'ravi1819' 
+    username: 'username',
+    password: 'password' 
   };
   app.post('/change-password', (req, res) => {
     try {

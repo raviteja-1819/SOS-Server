@@ -5,15 +5,12 @@ const cors = require('cors');
 const bodyParser = require('body-parser');
 const mysql = require('mysql2');
 const app = express();
-
 if (cluster.isMaster) {
   console.log(`Master ${process.pid} is running`);
-
   // Fork workers
   for (let i = 0; i < numCPUs; i++) {
     cluster.fork();
   }
-
   cluster.on('exit', (worker, code, signal) => {
     console.log(`Worker ${worker.process.pid} died`);
     console.log('Forking a new worker...');
@@ -42,7 +39,7 @@ if (cluster.isMaster) {
   });
 // Middleware to parse JSON bodies
 app.use(express.json());
-// signup
+// generating the userID
 function generateUserID() {
     const timestamp = Date.now().toString(36);
     const randomChars = Math.random().toString(36).substring(2);

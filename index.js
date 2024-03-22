@@ -4,6 +4,7 @@ const express = require('express');
 const cors = require('cors');
 const bodyParser = require('body-parser');
 const mysql = require('mysql2');
+const app = express();
 
 if (cluster.isMaster) {
   console.log(`Master ${process.pid} is running`);
@@ -24,15 +25,12 @@ if (cluster.isMaster) {
   // Middleware
   app.use(cors());
   app.use(bodyParser.json());
-  
-
   const connection = mysql.createConnection({
     host: '45.112.49.217',
     user: 'root',
     password: 'password',
     database: 'aid'
   });
-  
   // Connect to MySQL
   connection.connect((err) => {
     if (err) {
@@ -61,7 +59,9 @@ app.post('/signup', (req, res) => {
     gender,
     bloodGroup,
     address,
-    emergencyContacts,
+    emergencyContact1,
+    emergencyContact2,
+    emergencyContact3,
     alternateNumber,
     pincode,
     confirmPassword,
@@ -70,8 +70,8 @@ app.post('/signup', (req, res) => {
   } = req.body;
 
   // Check if all required fields are provided
-  if (!firstName || !lastName || !mobileNumber || !email || !password || !dateOfBirth || !age || !gender || !bloodGroup || !address || !emergencyContacts  || !alternateNumber || !pincode || !confirmPassword || !coordinatesLatitude || !coordinatesLongitude) {
-      console.log(!firstName,!lastName,!mobileNumber, !email,!password,!dateOfBirth,!age , !gender , !bloodGroup , !address, !emergencyContacts  , !alternativeNumber , !pincode , !confirmPassword , !coordinatesLatitude , !coordinatesLongitude);
+  if (!firstName || !lastName || !mobileNumber || !email || !password || !dateOfBirth || !age || !gender || !bloodGroup || !address || !emergencyContact1 || !emergencyContact2 || !emergencyContact3  || !alternateNumber || !pincode || !confirmPassword || !coordinatesLatitude || !coordinatesLongitude) {
+      console.log(!firstName,!lastName,!mobileNumber, !email,!password,!dateOfBirth,!age , !gender , !bloodGroup , !address, !emergencyContact1 ,!emergencyContact2,!emergencyContact3 , !alternateNumber , !pincode , !confirmPassword , !coordinatesLatitude , !coordinatesLongitude);
       return res.status(400).send('All fields are required');
   }
 
@@ -79,48 +79,19 @@ app.post('/signup', (req, res) => {
   if (password !== confirmPassword) {
     return res.status(400).send('Password and confirm password do not match');
   }
-
-  // Check if all emergency contact fields are provided
-  const errors = [];
-  for (const contact of emergencyContacts) {
-      const { name, number, relationShip } = contact;
-      if (!name || !number || !relationShip) {
-          errors.push('All emergency contact fields are required');
-      }
-  }
-  
-  // If there are any errors, send a response with all error messages
-  if (errors.length > 0) {
-      return res.status(400).json({ errors });
-  }
   // Generate 28-character userID
   const userID = generateUserID();
   console.log('Generated UserID:', userID);
 
   // Insert user details into NewProfileSignups table
   pool.query(
-    'INSERT INTO signup (firstName, lastName, mobileNumber, email, password, dateOfBirth, age, gender, bloodGroup, address, userID, alternateNumber, pincode, coordinatesLatitude, coordinatesLongitude) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
-    [firstName, lastName, mobileNumber, email, password, dateOfBirth, age, gender, bloodGroup, address, userID, alternateNumber, pincode, coordinatesLatitude, coordinatesLongitude],
+    'INSERT INTO signup (firstName, lastName, mobileNumber, email, password, dateOfBirth, age, gender, bloodGroup, address, userID, emergencyContact1,emergencyContact2,emergencyContact3,alternateNumber, pincode, coordinatesLatitude, coordinatesLongitude , confirmPassword) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,?, ?, ?)',
+    [firstName, lastName, mobileNumber, email, password, dateOfBirth, age, gender, bloodGroup, address, userID,emergencyContact1,emergencyContact2,emergencyContact3, alternateNumber, pincode, coordinatesLatitude, coordinatesLongitude , confirmPassword],
     (error, results) => {
       if (error) {
         console.error('Error inserting user details into signup:', error);
         return res.status(500).send('Internal Server Error');
       }
-
-      // Insert userID along with emergency contacts into EmergencyContacts table
-      for (const contact of emergencyContacts) {
-        pool.query(
-          'INSERT INTO EmergencyContacts (userID, name, number, relation) VALUES (?, ?, ?, ?)',
-          [userID, contact.name, contact.number, contact.relationShip],
-          (err2, results) => { // Renamed error variable to avoid conflicts
-            if (err2) {
-              console.error('Error inserting emergency contacts into EmergencyContacts:', err2);
-              return res.status(500).send('Internal Server Error');
-            }
-          }
-        );
-      }
-
       res.status(201).json({ message: 'Account created successfully', userID });
     }
   );
@@ -222,32 +193,71 @@ app.post('/change-password', (req, res) => {
       res.status(500).json({ error: 'Internal Server Error' });
   }
 });
-
-  // blood checkup
+connection.connect((err) => {
+  if (err) {
+    console.error('Error connecting to database: ', err);
+    return;
+  }
+  console.log('Connected to MySQL database.');
+});
+// Define the validateFields middleware functionfunction validateFields(req, res, next) {
   function validateFields(req, res, next) {
-    const { Name, mobileNumber, place, pincode } = req.body;
-    if (!Name || !mobileNumber || !place || !pincode) {
-        return res.status(400).json({ message: 'All fields are required' });
+    const { Name, mobileNumber, place, pincode, status, coordinatesLatitude, coordinatesLongitude } = req.body;
+    if (!Name || !mobileNumber || !place || !pincode || !status || !coordinatesLatitude || !coordinatesLongitude) {
+      return res.status(400).json({ message: 'All fields are required' });
     }
+    // If all fields are present, call next() to proceed to the next middleware/route handler
     next();
+  }
+// POST endpoint to handle blood checkup creation
+function validateFields(req, res, next) {
+  const { Name, mobileNumber, place, pincode, status, coordinatesLatitude, coordinatesLongitude } = req.body;
+  if (!Name || !mobileNumber || !place || !pincode || !status || !coordinatesLatitude || !coordinatesLongitude) {
+    return res.status(400).json({ message: 'All fields are required' });
+  }
+  next();
 }
-
-let bloodCheckups = [];
-
+}
 app.post('/bloodcheckup', validateFields, (req, res) => {
-    const { Name, mobileNumber, place, pincode } = req.body;
-    const bloodCheckup = { Name, mobileNumber, place, pincode };
-    bloodCheckups.push(bloodCheckup);
-    res.status(201).json({ message: 'Blood checkup created successfully' });
+  const { Name, mobileNumber, place, pincode, status, coordinatesLatitude, coordinatesLongitude } = req.body;
+
+  // Insert blood checkup data into the database
+  pool.query(
+    'INSERT INTO bloodCheckup (name, mobileNumber, place, status, pincode, coordinatesLatitude, coordinatesLongitude) VALUES (?, ?, ?, ?, ?, ?, ?)',
+    [Name, mobileNumber, place, status, pincode, coordinatesLatitude, coordinatesLongitude],
+    (error, result) => {
+      if (error) {
+        console.error('Error inserting details into bloodCheckup:', error);
+        return res.status(500).send('Internal Server Error');
+      }
+  
+      // Retrieve the auto-generated userId and send response
+      const userId = result.insertId;
+      res.status(201).json({ userId, message: 'Blood checkup created successfully' });
+    }
+  );
 });
 
+// GET endpoint to retrieve blood checkup by ID
 app.get('/bloodcheckup/:id', (req, res) => {
-    const id = req.params.id;
-    const bloodCheckup = bloodCheckups.find(checkup => checkup.id === id);
-    if (!bloodCheckup) {
-        return res.status(404).json({ message: 'Blood checkup not found' });
+  const id = req.params.id;
+
+
+  pool.query('SELECT * FROM bloodCheckup WHERE id = ?', id, (err, results) => {
+    if (err) {
+      console.error('Error retrieving blood checkup:', err);
+      return res.status(500).json({ message: 'Error retrieving blood checkup' });
     }
+
+    // If blood checkup not found, return 404
+    if (results.length === 0) {
+      return res.status(404).json({ message: 'Blood checkup not found' });
+    }
+
+    // Send the retrieved blood checkup data in the response
+    const bloodCheckup = results[0];
     res.json(bloodCheckup);
+  });
 });
 
 /// Blood Requirements
@@ -506,5 +516,3 @@ app.get('/blood-emergency', (req, res) => {
 app.listen(3000, () => {
     console.log(`Worker ${process.pid} started and listening on port 3000`);
   });
-
-}

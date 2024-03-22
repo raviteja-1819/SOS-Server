@@ -21,7 +21,7 @@ if (cluster.isMaster) {
 
   // Middleware
   app.use(cors());
-  
+
   app.use(bodyParser.json());
   // mysql connection
   const connection = mysql.createConnection({
@@ -82,7 +82,7 @@ app.post('/signup', (req, res) => {
   const userID = generateUserID();
   console.log('Generated UserID:', userID);
   // Insert user details into NewProfileSignups table
-  pool.query(
+  connection.query(
     'INSERT INTO signup (firstName, lastName, mobileNumber, email, password, dateOfBirth, age, gender, bloodGroup, address, userID, emergencyContact1,emergencyContact2,emergencyContact3,alternateNumber, pincode, coordinatesLatitude, coordinatesLongitude , confirmPassword) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,?, ?, ?)',
     [firstName, lastName, mobileNumber, email, password, dateOfBirth, age, gender, bloodGroup, address, userID,emergencyContact1,emergencyContact2,emergencyContact3, alternateNumber, pincode, coordinatesLatitude, coordinatesLongitude , confirmPassword],
     (error, results) => {
@@ -98,7 +98,7 @@ app.post('/signup', (req, res) => {
   app.post('/login', (req, res) => {
     const { email, password } = req.body;
     const query = 'SELECT * FROM signup WHERE email = ? AND password = ?';
-    req.mysql.query(query, [email, password], (err, results) => {
+    connection.query(query, [email, password], (err, results) => {
       if (err) {
         console.error('Error logging in:', err);
         res.status(500).json({ message: 'Internal server error' });
@@ -113,9 +113,10 @@ app.post('/signup', (req, res) => {
     });
   });
   // Route to get all users
-  app.get('/users', (req, res) => {
-    const query = 'SELECT * FROM signup';
-    req.mysql.query(query, (err, results) => {
+  app.get('/users/:email', (req, res) => {
+    const query = 'SELECT * FROM signup WHERE email = ?';
+    const email = req.params.email;
+    connection.query(query, email, (err, results) => {
       if (err) {
         console.error('Error fetching users:', err);
         res.status(500).json({ message: 'Internal server error' });
@@ -123,7 +124,8 @@ app.post('/signup', (req, res) => {
       }
       res.status(200).json(results);
     });
-  });
+});
+
 // Define the validateFields middleware function
 function validateFields(req, res, next) {
   const { userId, name, mobileNumber, place, pincode, status, coordinatesLatitude, coordinatesLongitude } = req.body;
@@ -152,7 +154,8 @@ app.post('/bloodcheckup', validateFields, (req, res) => {
 });
 app.get('/bloodcheckup/:id', (req, res) => {
     const id = req.params.id;
-    pool.query('SELECT * FROM bloodCheckup WHERE id = ?', id, (err, results) => {
+    console.log(id);
+    connection.query('SELECT * FROM bloodCheckup WHERE userId = ?', id, (err, results) => {
       if (err) {
         console.error('Error retrieving blood checkup:', err);
         return res.status(500).json({ message: 'Error retrieving blood checkup' });
@@ -190,14 +193,24 @@ app.post('/add-contact/:person', validateFields, (req, res) => {
   });
 });
   // Retrieve emergency contacts for a person
-  app.get('/contacts/:person', (req, res) => {
-      const person = req.params.person;
-      // Check if the person exists in emergencyContacts and if they have any emergency contacts
-      if (!emergencyContacts[person] || emergencyContacts[person].length === 0) {
-          return res.status(404).json({ error: 'Person not found or no emergency contacts available' });
+  app.get('/contacts/:id', (req, res) => {
+    const personId = req.params.id; // Retrieve the id parameter from the request URL
+  
+    // Query the database to retrieve emergency contacts for the specified person ID
+    connection.query('SELECT * FROM emergencyContacts WHERE userId = ?', personId, (error, results) => {
+      if (error) {
+        console.error('Error retrieving emergency contacts:', error);
+        return res.status(500).json({ error: 'Internal Server Error' });
       }
-      // Return the emergency contacts for the specified person
-      res.json(emergencyContacts[person]);
+  
+      // Check if any emergency contacts were found for the specified person ID
+      if (results.length === 0) {
+        return res.status(404).json({ error: 'Person not found or no emergency contacts available' });
+      }
+  
+      // Return the emergency contacts for the specified person ID
+      res.json(results);
+    });
   });
   // anonymous report
   function insertanonymousReport(reportData) {
@@ -238,15 +251,17 @@ app.post('/add-contact/:person', validateFields, (req, res) => {
         res.status(500).send('Internal Server Error');
       });
   });
-  app.get('/anonymousreports', (req, res) => {
-    connection.query('SELECT * FROM anonymousReport', (err, results) => {
+  app.get('/anonymousreports/:id', (req, res) => {
+    const userId = req.params.id;
+    connection.query('SELECT * FROM anonymousReport WHERE userId = ?', [userId], (err, results) => {
       if (err) {
         console.error('Error retrieving anonymous reports:', err);
         return res.status(500).send('Internal Server Error');
       }
       res.json(results);
     });
-  });
+});
+
   // bloodemergency
   app.post('/blood-emergency', (req, res) => {
     const {
@@ -268,7 +283,7 @@ app.post('/add-contact/:person', validateFields, (req, res) => {
         return res.status(400).send('All fields are required');
     }
     // Insert blood emergency request into the database
-    const query = 'INSERT INTO bloodEmergency (userId, patientName, bloodType, mobileNumber, hospitalName, hospitalAddress, location, pincode, purposeOfBlood, coordinatesLatitude, coordinatesLongitude, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)';
+    const query = 'INSERT INTO BloodEmergency (userId, patientName, bloodType, mobileNumber, hospitalName, hospitalAddress, location, pincode, purposeOfBlood, coordinatesLatitude, coordinatesLongitude, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)';
     const values = [userId, patientName, bloodType, mobileNumber, hospitalName, hospitalAddress, location, pincode, purposeOfBlood, coordinatesLatitude, coordinatesLongitude, status];
     
     connection.query(query, values, (error, results) => {
@@ -279,17 +294,19 @@ app.post('/add-contact/:person', validateFields, (req, res) => {
         res.status(201).send('Blood emergency request submitted successfully!');
     });
 });
-app.get('/blood-emergency', (req, res) => {
-    // Retrieve all blood emergency requests from the database
-    const query = 'SELECT * FROM BloodEmergency';
-    connection.query(query, (error, results) => {
-        if (error) {
-            console.error('Error retrieving blood emergency requests:', error);
-            return res.status(500).send('Internal Server Error');
-        }
-        res.json(results);
-    });
+app.get('/blood-emergency/:id', (req, res) => {
+  const userId = req.params.id; // Retrieve the id parameter from the request URL
+
+  // Retrieve all blood emergency requests for a specific user from the database
+  connection.query('SELECT * FROM BloodEmergency WHERE userId = ?', userId, (err, results) => {
+    if (err) {
+      console.error('Error retrieving blood emergency requests:', err); // Changed 'error' to 'err' for consistency
+      return res.status(500).send('Internal Server Error');
+    }
+    res.json(results);
+  });
 });
+
 // blood requirements
 app.post('/blood-requirements', async (req, res) => {
   const { userId, patientName, date, time, bloodType, mobileNumber, hospitalName, hospitalAddress, purposeOfBlood, pincode, status, coordinatesLatitude, coordinatesLongitude } = req.body;
@@ -319,11 +336,13 @@ app.post('/blood-requirements', async (req, res) => {
     res.status(500).send('Internal Server Error');
   }
 });
-app.get('/blood-requirements', async (req, res) => {
+app.get('/blood-requirements/:id', async (req, res) => {
   try {
-    // Retrieve all blood requirements from BloodRequirement table
+    const userId = req.params.id; // Retrieve the id parameter from the request URL
+
+    // Retrieve all blood requirements for a specific user from the BloodRequirement table
     const bloodRequirements = await new Promise((resolve, reject) => {
-      connection.query('SELECT * FROM BloodRequirement', (error, results) => {
+      connection.query('SELECT * FROM bloodRequirement WHERE userId = ?', userId, (error, results) => {
         if (error) {
           reject(error);
         } else {
@@ -331,12 +350,14 @@ app.get('/blood-requirements', async (req, res) => {
         }
       });
     });
+
     res.json(bloodRequirements);
   } catch (error) {
     console.error('Error retrieving blood requirements:', error);
     res.status(500).send('Internal Server Error');
   }
 });
+
 // Callback requests
 app.post('/callback', (req, res) => {
     const { userId, name, date, time,place, mobileNumber, subject, topictospeakabout, status, coordinatesLatitude, coordinatesLongitude } = req.body;
@@ -368,16 +389,19 @@ app.post('/callback', (req, res) => {
     });
 });
 // Endpoint to retrieve all callback requests
-app.get('/callbacks', (req, res) => {
-    // Retrieve all callback requests from the database
-    connection.query('SELECT * FROM callbackRequest', (error, results) => {
-        if (error) {
-            console.error('Error retrieving callback requests:', error);
-            return res.status(500).send('Internal Server Error');
-        }
-        res.json(results);
-    });
+app.get('/callbacks/:id', (req, res) => {
+  const userId = req.params.id; // Retrieve the id parameter from the request URL
+  
+  // Retrieve all callback requests for a specific user from the database
+  connection.query('SELECT * FROM callbackRequest WHERE userId = ?', userId, (error, results) => {
+      if (error) {
+          console.error('Error retrieving callback requests:', error);
+          return res.status(500).send('Internal Server Error');
+      }
+      res.json(results);
+  });
 });
+
 //report an issue
 app.post('/report', (req, res) => {
     const { userId, name, date, time, email, mobileNumber, subject, explaininBrief, status, coordinatesLatitude, coordinatesLongitude } = req.body;
@@ -396,9 +420,11 @@ app.post('/report', (req, res) => {
     });
   });
   
-  app.get('/report', (req, res) => {
-    // Fetch reports from the database
-    connection.query('SELECT * FROM reportIssue', (error, results, fields) => {
+  app.get('/report/:id', (req, res) => {
+    const userId = req.params.id; // Retrieve the id parameter from the request URL
+    
+    // Fetch reports from the database for the specified user ID
+    connection.query('SELECT * FROM reportIssue WHERE userId = ?', userId, (error, results, fields) => {
       if (error) {
         console.error('Error fetching reports from database:', error);
         res.status(500).send('Error fetching reports');
@@ -406,7 +432,8 @@ app.post('/report', (req, res) => {
       }
       res.json(results);
     });
-  });
+});
+
 // Start the server
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {

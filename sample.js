@@ -21,6 +21,7 @@ if (cluster.isMaster) {
 
   // Middleware
   app.use(cors());
+  
   app.use(bodyParser.json());
   // mysql connection
   const connection = mysql.createConnection({

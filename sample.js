@@ -1,22 +1,45 @@
-const mysql = require('mysql');
+const cluster = require('cluster');
+const numCPUs = require('os').cpus().length;
 const express = require('express');
+const cors = require('cors');
+const bodyParser = require('body-parser');
+const mysql = require('mysql2');
 const app = express();
 
-// Create a MySQL connection
-const connection = mysql.createConnection({
-  host: '45.112.49.217',
-  user: 'root',
-  password: 'password',
-  database: 'aid'
-});
-// Connect to MySQL
-connection.connect((err) => {
-  if (err) {
-    console.error('Error connecting to database: ', err);
-    return;
+if (cluster.isMaster) {
+  console.log(`Master ${process.pid} is running`);
+
+  // Fork workers
+  for (let i = 0; i < numCPUs; i++) {
+    cluster.fork();
   }
-  console.log('Connected to MySQL database.');
-});
+
+  cluster.on('exit', (worker, code, signal) => {
+    console.log(`Worker ${worker.process.pid} died`);
+    console.log('Forking a new worker...');
+    cluster.fork();
+  });
+} else {
+  const app = express();
+
+  // Middleware
+  app.use(cors());
+  app.use(bodyParser.json());
+  // mysql connection
+  const connection = mysql.createConnection({
+    host: '45.112.49.217',
+    user: 'root',
+    password: 'password',
+    database: 'aid'
+  });
+  // Connect to MySQL
+  connection.connect((err) => {
+    if (err) {
+      console.error('Error connecting to database: ', err);
+      return;
+    }
+    console.log('Connected to MySQL database.');
+  });
 // Middleware to parse JSON bodies
 app.use(express.json());
 // signup
@@ -391,3 +414,4 @@ const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`Server is running on port ${PORT}`);
 });
+}

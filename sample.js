@@ -151,16 +151,17 @@ app.post('/add-contact/:person', validateFields, (req, res) => {
     });
 });
 // POST endpoint to handle blood checkup creation
-const uuid = require('uuid');
 app.post('/bloodcheckup', validateFields, (req, res, next) => {
+  console.log('Request body:', req.body); // Log the request body
+
   const { userId, name, mobileNumber, place, pincode, status, coordinatesLatitude, coordinatesLongitude } = req.body;
 
   if (!userId || !name || !mobileNumber || !place || !pincode || !status || !coordinatesLatitude || !coordinatesLongitude) {
     return res.status(400).json({ error: 'All fields are required' });
   }
   
-  // Generate unique Id
-  const Id = uuid.v4().substring(0, 8); // Generating unique 8-character Id
+  // Generate unique Id with 8 characters
+  const Id = uuid.v4().substring(0, 8);
 
   // Insert blood checkup data into the database
   connection.query(
@@ -176,7 +177,6 @@ app.post('/bloodcheckup', validateFields, (req, res, next) => {
     }
   );
 });
-
 // Updated route definition to accept userId as a query parameter
 app.get('/bloodcheckup', (req, res) => {
   const userId = req.header('userId'); // Extract the userId from request headers
@@ -222,31 +222,48 @@ function validateFields(req, res, next) {
   }
   // post anonymous reports
   app.post('/anonymousreport', (req, res) => {
-    const { userId,date, time, placeOfIncident, subject, explaininBrief,coordinatesLatitude,coordinatesLongitude , status } = req.body;
-    if (!userId||!date || !time || !placeOfIncident || !subject || !explaininBrief ||!coordinatesLatitude ||!coordinatesLongitude ||!status) {
-      return res.status(400).send('All fields are required');
-    }
-    // Validate date
-    const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
-    if (!dateRegex.test(date)) {
-      return res.status(400).send('Invalid date format. Date should be in YYYY-MM-DD format');
-    }
-    // Validate time
-    const timeRegex = /^([01]\d|2[0-3]):([0-5]\d)$/;
-    if (!timeRegex.test(time)) {
-      return res.status(400).send('Invalid time format. Time should be in HH:MM format (24-hour)');
-    }
-    // Insert report data into the database
-    insertanonymousReport(req.body)
-      .then(() => {
-        console.log('Anonymous report submitted successfully');
-        res.status(201).send('Report submitted successfully!');
-      })
-      .catch(error => {
-        console.error('Error submitting anonymous report:', error);
-        res.status(500).send('Internal Server Error');
-      });
+      const { userId, date, time, placeOfIncident, subject, explainInBreif, coordinatesLatitude, coordinatesLongitude, status } = req.body;
+    
+      // Validate if all fields are provided
+      if (!userId || !date || !time || !placeOfIncident || !subject || !explainInBreif || !coordinatesLatitude || !coordinatesLongitude || !status) {
+        console.log("userId:", userId, "\ndate:", date, "\ntime:", time, "\nplaceOfIncident:", placeOfIncident, "\nsubject:", subject, "\nexplainInBreif:", explainInBreif, "\ncoordinatesLatitude:", coordinatesLatitude, "\ncoordinatesLongitude:", coordinatesLongitude);
+        return res.status(400).send('All fields are required');
+      }
+    
+      // Validate date format
+      const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
+      if (!dateRegex.test(date)) {
+        console.log('Invalid date format');
+        return res.status(400).send('Invalid date format. Date should be in YYYY-MM-DD format');
+      }
+    
+      // Validate time format
+      const timeRegex = /^([01]\d|2[0-3]):([0-5]\d)$/;
+      if (!timeRegex.test(time)) {
+        console.log('Invalid time format');
+        return res.status(400).send('Invalid time format. Time should be in HH:MM format (24-hour)');
+      }
+    
+      // Generate unique 8-character ID
+      const Id = uuid.v4().substring(0, 8);
+    
+      // Insert report data into the database
+      connection.query(
+        'INSERT INTO anonymousReport (Id, userId, date, time, placeOfIncident, subject, explainInBreif, coordinatesLatitude, coordinatesLongitude, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+        [Id, userId, date, time, placeOfIncident, subject, explainInBreif, coordinatesLatitude, coordinatesLongitude, status],
+        (error, result) => {
+          if (error) {
+            console.error('Error inserting details into anonymousReport:', error);
+            return res.status(500).send('Internal Server Error');
+          }
+          console.log('Anonymous report submitted successfully');
+          res.status(201).send('Report submitted successfully!');
+        }
+      );
   });
+  
+  
+
   app.get('/anonymousreports', (req, res) => {
     const userId = req.header('userId'); // Extract the userId from request headers
     if (!userId) {

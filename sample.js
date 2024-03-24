@@ -261,7 +261,7 @@ function validateFields(req, res, next) {
         }
       );
   });
-  app.get('/anonymousreports', (req, res) => {
+  app.get('/anonymousreport', (req, res) => {
     const userId = req.header('userId'); // Extract the userId from request headers
     if (!userId) {
       return res.status(400).json({ message: 'userId header is required' });

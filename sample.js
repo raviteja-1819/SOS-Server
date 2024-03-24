@@ -69,8 +69,8 @@ app.post('/signup', (req, res) => {
     coordinatesLongitude
   } = req.body;
   // Check if all required fields are provided
-  if (!firstName || !lastName || !mobileNumber || !email || !password || !dateOfBirth || !age || !gender || !bloodGroup || !address || !emergencyContact1 || !emergencyContact2 || !emergencyContact3  || !alternateNumber || !pincode || !confirmPassword || !coordinatesLatitude || !coordinatesLongitude) {
-      console.log(!firstName,!lastName,!mobileNumber, !email,!password,!dateOfBirth,!age , !gender , !bloodGroup , !address, !emergencyContact1 ,!emergencyContact2,!emergencyContact3 , !alternateNumber , !pincode , !confirmPassword , !coordinatesLatitude , !coordinatesLongitude);
+  if (!firstName || !lastName || !mobileNumber || !email || !password || !dateOfBirth || !age || !gender || !bloodGroup || !address || !emergencyContact1 || !emergencyContact2   || !alternateNumber || !pincode || !confirmPassword || !coordinatesLatitude || !coordinatesLongitude) {
+      console.log("firstName",!firstName," \n lastName",!lastName," \n mobile",!mobileNumber," \n email", !email," \n password",!password," \n dob",!dateOfBirth," \n age",!age ," \n gender", !gender ," \n bg", !bloodGroup ," \n add", !address," \n EC1", !emergencyContact1 ," \n EC2",!emergencyContact2 ," \n Alter", !alternateNumber ," \n pin", !pincode ," \n pass", !confirmPassword ," \n lati", !coordinatesLatitude , " \n longi",!coordinatesLongitude);
       return res.status(400).send('All fields are required');
   }
   // Check if password and confirmPassword match

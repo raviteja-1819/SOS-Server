@@ -1,6 +1,7 @@
 const cluster = require('cluster');
 const numCPUs = require('os').cpus().length;
 const express = require('express');
+const uuid = require('uuid');
 const cors = require('cors');
 const bodyParser = require('body-parser');
 const mysql = require('mysql2');
@@ -150,23 +151,32 @@ app.post('/add-contact/:person', validateFields, (req, res) => {
     });
 });
 // POST endpoint to handle blood checkup creation
-app.post('/bloodcheckup', validateFields, (req, res) => {
-  const { userId,name, mobileNumber, place, pincode, status, coordinatesLatitude, coordinatesLongitude } = req.body;
+const uuid = require('uuid');
+app.post('/bloodcheckup', validateFields, (req, res, next) => {
+  const { userId, name, mobileNumber, place, pincode, status, coordinatesLatitude, coordinatesLongitude } = req.body;
+
+  if (!userId || !name || !mobileNumber || !place || !pincode || !status || !coordinatesLatitude || !coordinatesLongitude) {
+    return res.status(400).json({ error: 'All fields are required' });
+  }
+  
+  // Generate unique Id
+  const Id = uuid.v4().substring(0, 8); // Generating unique 8-character Id
+
   // Insert blood checkup data into the database
   connection.query(
-    'INSERT INTO bloodCheckup (userId,name, mobileNumber, place, status, pincode, coordinatesLatitude, coordinatesLongitude) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
-    [userId,name, mobileNumber, place, status, pincode, coordinatesLatitude, coordinatesLongitude],
+    'INSERT INTO bloodCheckup (Id, userId, name, mobileNumber, place, status, pincode, coordinatesLatitude, coordinatesLongitude) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+    [Id, userId, name, mobileNumber, place, status, pincode, coordinatesLatitude, coordinatesLongitude],
     (error, result) => {
       if (error) {
-       console.error('Error inserting details into bloodCheckup:', error);
+        console.error('Error inserting details into bloodCheckup:', error);
         return res.status(500).send('Internal Server Error');
       }
-      // Retrieve the auto-generated userId and send response
-      const userId = result.insertId;
-      res.status(201).json({ userId, message: 'Blood checkup created successfully' });
+      // Send response with the generated Id
+      res.status(201).json({ Id, message: 'Blood checkup created successfully' });
     }
   );
 });
+
 // Updated route definition to accept userId as a query parameter
 app.get('/bloodcheckup', (req, res) => {
   const userId = req.header('userId'); // Extract the userId from request headers
@@ -251,7 +261,7 @@ function validateFields(req, res, next) {
     });
   });
   // bloodemergency
-  app.post('/blood-emergency', (req, res) => {
+app.post('/blood-emergency', (req, res) => {
     const {
         userId,
         patientName,
@@ -267,12 +277,14 @@ function validateFields(req, res, next) {
         status
     } = req.body;
 
+    const Id = uuid.v4().substring(0, 8); 
     if (!userId || !patientName || !bloodType || !mobileNumber || !hospitalName || !hospitalAddress || !location || !pincode || !purposeOfBlood || !coordinatesLatitude || !coordinatesLongitude || !status) {
         return res.status(400).send('All fields are required');
     }
+
     // Insert blood emergency request into the database
-    const query = 'INSERT INTO BloodEmergency (userId, patientName, bloodType, mobileNumber, hospitalName, hospitalAddress, location, pincode, purposeOfBlood, coordinatesLatitude, coordinatesLongitude, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)';
-    const values = [userId, patientName, bloodType, mobileNumber, hospitalName, hospitalAddress, location, pincode, purposeOfBlood, coordinatesLatitude, coordinatesLongitude, status];
+    const query = 'INSERT INTO BloodEmergency (Id, userId, patientName, bloodType, mobileNumber, hospitalName, hospitalAddress, location, pincode, purposeOfBlood, coordinatesLatitude, coordinatesLongitude, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)';
+    const values = [Id, userId, patientName, bloodType, mobileNumber, hospitalName, hospitalAddress, location, pincode, purposeOfBlood, coordinatesLatitude, coordinatesLongitude, status];
     
     connection.query(query, values, (error, results) => {
         if (error) {
@@ -282,6 +294,7 @@ function validateFields(req, res, next) {
         res.status(201).send('Blood emergency request submitted successfully!');
     });
 });
+
 app.get('/blood-emergency', (req, res) => {
   const userId = req.header('userId');  // Extract the userId from query parameters
   if (!userId) {
@@ -300,6 +313,9 @@ app.get('/blood-emergency', (req, res) => {
 app.post('/blood-requirements', async (req, res) => {
   const { userId, patientName, date, time, bloodType, mobileNumber, hospitalName, hospitalAddress, purposeOfBlood, pincode, status, coordinatesLatitude, coordinatesLongitude } = req.body;
 
+  // Generate unique Id
+  const Id = uuid.v4().substring(0, 8); // Generating unique Id and extracting first 8 characters
+
   // Check if all required fields are provided
   if (!userId || !patientName || !date || !time || !bloodType || !mobileNumber || !hospitalName || !hospitalAddress || !purposeOfBlood || !pincode || !status || !coordinatesLatitude || !coordinatesLongitude) {
     return res.status(400).send('All fields are required');
@@ -308,8 +324,8 @@ app.post('/blood-requirements', async (req, res) => {
     // Insert blood requirement into BloodRequirement table
     await new Promise((resolve, reject) => {
       connection.query(
-        'INSERT INTO bloodRequirement (userId, patientName, date, time, bloodType, mobileNumber, hospitalName, hospitalAddress, purposeOfBlood, pincode, status, coordinatesLatitude, coordinatesLongitude) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
-        [userId, patientName, date, time, bloodType, mobileNumber, hospitalName, hospitalAddress, purposeOfBlood, pincode, status, coordinatesLatitude, coordinatesLongitude],
+        'INSERT INTO bloodRequirement (Id, userId, patientName, date, time, bloodType, mobileNumber, hospitalName, hospitalAddress, purposeOfBlood, pincode, status, coordinatesLatitude, coordinatesLongitude) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+        [Id, userId, patientName, date, time, bloodType, mobileNumber, hospitalName, hospitalAddress, purposeOfBlood, pincode, status, coordinatesLatitude, coordinatesLongitude],
         (error, results) => {
           if (error) {
             reject(error);
@@ -325,6 +341,7 @@ app.post('/blood-requirements', async (req, res) => {
     res.status(500).send('Internal Server Error');
   }
 });
+
 // blood requirements
 app.get('/blood-requirements', async (req, res) => {
   try {

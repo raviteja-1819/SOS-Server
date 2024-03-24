@@ -21,7 +21,7 @@ if (cluster.isMaster) {
 } else {
   const app = express();
   // Middleware
-  app.use(cors());
+  // app.use(cors());
   app.use(bodyParser.json());
   // mysql connection
   const connection = mysql.createConnection({
@@ -261,9 +261,6 @@ function validateFields(req, res, next) {
         }
       );
   });
-  
-  
-
   app.get('/anonymousreports', (req, res) => {
     const userId = req.header('userId'); // Extract the userId from request headers
     if (!userId) {
@@ -740,7 +737,7 @@ app.get('/bloodEmergency/:userId?', (req, res) => {
   }
 });
 // list of anonymous report
-app.get('/anonymousreport/:id?', (req, res) => {
+app.get('/anonymousreports/:id?', (req, res) => {
   console.log('entered');
   const userId = req.header('userId'); // Extract the userId from request headers
   // Check if userId header is missing or empty

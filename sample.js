@@ -19,10 +19,8 @@ if (cluster.isMaster) {
   });
 } else {
   const app = express();
-
   // Middleware
   app.use(cors());
-
   app.use(bodyParser.json());
   // mysql connection
   const connection = mysql.createConnection({
@@ -105,7 +103,6 @@ app.post('/signup', (req, res) => {
         res.status(500).json({ message: 'Internal server error' });
         return;
       }
-
       if (results.length === 0) {
         res.status(401).json({ message: 'Invalid email or password' });
       } else {
@@ -144,12 +141,10 @@ app.post('/add-contact/:person', validateFields, (req, res) => {
         console.error('Error retrieving emergency contacts:', error);
         return res.status(500).json({ error: 'Internal Server Error' });
       }
-  
       // Check if any emergency contacts were found for the specified person ID
       if (results.length === 0) {
         return res.status(404).json({ error: 'Person not found or no emergency contacts available' });
       }
-  
       // Return the emergency contacts for the specified person ID
       res.json(results);
     });
@@ -175,12 +170,10 @@ app.post('/bloodcheckup', validateFields, (req, res) => {
 // Updated route definition to accept userId as a query parameter
 app.get('/bloodcheckup', (req, res) => {
   const userId = req.header('userId'); // Extract the userId from request headers
-
   // Check if userId header is missing or empty
   if (!userId) {
     return res.status(400).json({ message: 'userId header is required' });
   }
-
   connection.query('SELECT * FROM bloodCheckup WHERE userId = ?', userId, (err, results) => {
     if (err) {
       console.error('Error retrieving blood checkup:', err);
@@ -195,7 +188,6 @@ app.get('/bloodcheckup', (req, res) => {
     res.json(bloodCheckup);
   });
 });
-
 app.use(express.json());
 // Define the validateFields middleware function
 function validateFields(req, res, next) {
@@ -205,7 +197,6 @@ function validateFields(req, res, next) {
   }
   next();
 }
-
   // anonymous report
   function insertanonymousReport(reportData) {
     return new Promise((resolve, reject) => {
@@ -313,7 +304,6 @@ app.post('/blood-requirements', async (req, res) => {
   if (!userId || !patientName || !date || !time || !bloodType || !mobileNumber || !hospitalName || !hospitalAddress || !purposeOfBlood || !pincode || !status || !coordinatesLatitude || !coordinatesLongitude) {
     return res.status(400).send('All fields are required');
   }
-
   try {
     // Insert blood requirement into BloodRequirement table
     await new Promise((resolve, reject) => {
@@ -355,7 +345,6 @@ app.get('/blood-requirements', async (req, res) => {
         }
       });
     });
-
     res.json(bloodRequirements);
   } catch (error) {
     console.error('Error retrieving blood requirements:', error);
@@ -461,7 +450,6 @@ app.get('/users/:userId', (req, res) => {
       res.status(404).json({ message: 'User not found' });
       return;
     }
-
     res.status(200).json(results[0]);
   });
 });
@@ -475,15 +463,12 @@ app.post('/sponsors', (req, res) => {
   }
   // Extract data from request body
   const { firstName, lastName, designation, area } = req.body;
-  
   // Check if all required fields are provided
   if (!firstName || !lastName || !designation || !area) {
     return res.status(400).json({ message: 'All fields are required' });
   }
-
   // Prepare the SQL query to insert data into the sponsors table
   const query = 'INSERT INTO sponsors (firstName, lastName, designation, area) VALUES (?, ?, ?, ?)';
-
   // Execute the query with parameters
   connection.query(query, [firstName, lastName, designation, area], (err, results) => {
     if (err) {
@@ -493,18 +478,15 @@ app.post('/sponsors', (req, res) => {
     res.status(201).json({ message: 'Sponsor added successfully' });
   });
 });
-
 // to fetch all the sponsors
 app.get('/sponsors', (req, res) => {
   const userId = req.header('userId'); // Extract the userId from request headers
-
   // Check if userId header is missing or empty
   if (!userId) {
     return res.status(400).json({ message: 'userId header is required' });
   }
   // Prepare the SQL query to select all data from the partners table
   const query = 'SELECT * FROM sponsors';
-
   // Execute the query
   connection.query(query, (err, results) => {
     if (err) {
@@ -517,22 +499,18 @@ app.get('/sponsors', (req, res) => {
 // Endpoint to get a single sponsor by sponsorId
 app.get('/sponsors/:sponsorId', (req, res) => {
   const sponsorId = req.params.sponsorId;
-
   // Prepare the SQL query to select the sponsor with the specified sponsorId
   const query = 'SELECT * FROM sponsors WHERE sponsorId = ?';
-
   // Execute the query with the sponsorId parameter
   connection.query(query, [sponsorId], (err, results) => {
     if (err) {
       console.error('Error fetching sponsor:', err);
       return res.status(500).json({ message: 'Internal Server Error' });
     }
-
     // Check if a sponsor with the specified sponsorId was found
     if (results.length === 0) {
       return res.status(404).json({ message: 'Sponsor not found' });
     }
-
     // Send the retrieved sponsor as a JSON response
     res.status(200).json(results[0]);
   });
@@ -601,9 +579,7 @@ app.get('/partners/:partnerId', (req, res) => {
 // list of all blood requirements
 app.get('/blood-requirement/:id?', (req, res) => {
   console.log('entered');
- 
   const userId = req.header('userId'); // Extract the userId from request headers
-
   // Check if userId header is missing or empty
   if (!userId) {
     return res.status(400).json({ message: 'userId header is required' });
@@ -663,7 +639,6 @@ app.get('/reportedissues/:id?', (req, res) => {
 // list of all bloodcheckups
 app.get('/bloodcheckups/:id?', (req, res) => {
   const userId = req.header('userId'); // Extract the userId from request headers
-
   // Check if userId header is missing or empty
   if (!userId) {
     return res.status(400).json({ message: 'userId header is required' });
@@ -699,7 +674,6 @@ app.get('/bloodcheckups/:id?', (req, res) => {
 // GET endpoint to retrieve blood emergency reports
 app.get('/bloodEmergency/:userId?', (req, res) => {
   const userId = req.header('userId'); // Extract the userId from request headers
-
   // Check if userId header is missing or empty
   if (!userId) {
     return res.status(400).json({ message: 'userId header is required' });

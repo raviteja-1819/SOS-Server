@@ -4,6 +4,7 @@ const express = require('express');
 const cors = require('cors');
 const bodyParser = require('body-parser');
 const mysql = require('mysql2');
+const { log } = require('console');
 const app = express();
 if (cluster.isMaster) {
   console.log(`Master ${process.pid} is running`);
@@ -83,11 +84,11 @@ app.post('/signup', (req, res) => {
   console.log('Generated UserID:', userID);
   // Insert user details into NewProfileSignups table
   connection.query(
-    'INSERT INTO signup (firstName, lastName, mobileNumber, email, dateOfBirth, age, gender, bloodGroup, address, userID, emergencyContact1,emergencyContact2,emergencyContact3,alternateNumber, pincode, coordinatesLatitude, coordinatesLongitude ) VALUES ( ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,?, ?, ?)',
+    'INSERT INTO users (firstName, lastName, mobileNumber, email, dateOfBirth, age, gender, bloodGroup, address, userID, emergencyContact1,emergencyContact2,emergencyContact3,alternateNumber, pincode, coordinatesLatitude, coordinatesLongitude ) VALUES ( ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,?, ?, ?)',
     [firstName, lastName, mobileNumber, email, dateOfBirth, age, gender, bloodGroup, address, userID,emergencyContact1,emergencyContact2,emergencyContact3, alternateNumber, pincode, coordinatesLatitude, coordinatesLongitude , ],
     (error, results) => {
       if (error) {
-        console.error('Error inserting user details into signup:', error);
+        console.error('Error inserting user details into users:', error);
         return res.status(500).send('Internal Server Error');
       }
       res.status(201).json({ message: 'Account created successfully', userID });
@@ -97,7 +98,7 @@ app.post('/signup', (req, res) => {
   // Login route
   app.post('/login', (req, res) => {
     const { email, password } = req.body;
-    const query = 'SELECT * FROM signup WHERE email = ? AND password = ?';
+    const query = 'SELECT * FROM users WHERE email = ? AND password = ?';
     connection.query(query, [email, password], (err, results) => {
       if (err) {
         console.error('Error logging in:', err);
@@ -334,6 +335,7 @@ app.post('/blood-requirements', async (req, res) => {
     res.status(500).send('Internal Server Error');
   }
 });
+// blood requirements
 app.get('/blood-requirements', async (req, res) => {
   try {
     const userId = req.header('userId');
@@ -391,7 +393,10 @@ app.post('/callback', (req, res) => {
     });
 });
 // Endpoint to retrieve all callback requests
-app.get('/callbacks', (req, res) => {
+app.get('/callback/:id?', (req, res) => {
+  console.log('entered');
+ 
+  // console.log(id);
   const userId = req.header('userId'); // Extract the userId from request headers
 
   // Check if userId header is missing or empty
@@ -399,51 +404,30 @@ app.get('/callbacks', (req, res) => {
     return res.status(400).json({ message: 'userId header is required' });
   }
 
-  // Retrieve all callback requests for a specific user from the database
-  connection.query('SELECT * FROM callbackRequest WHERE userId = ?', userId, (error, results) => {
-    if (error) {
-      console.error('Error retrieving callback requests:', error);
-      return res.status(500).send('Internal Server Error');
-    }
-    res.json(results);
-  });
-});
-//report an issue
-app.post('/report', (req, res) => {
-    const { userId, name, date, time, email, mobileNumber, subject, explaininBrief, status, coordinatesLatitude, coordinatesLongitude } = req.body;
-  
-    // Insert the data into the database
-    connection.query('INSERT INTO reportIssue (userId, name, date, time, email, mobileNumber, subject, explaininBrief, status, coordinatesLatitude, coordinatesLongitude) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)', 
-               [userId, name, date, time, email, mobileNumber, subject, explaininBrief, status, coordinatesLatitude, coordinatesLongitude], 
-               (error, results, fields) => {
+  // Retrieve all callback requests from the database
+  if (req.params.id) {
+    console.log('true');
+    connection.query('SELECT * FROM callbackRequest WHERE id = ?',req.params.id, (error, results) => {
       if (error) {
-        console.error('Error inserting report into database:', error);
-        res.status(500).send('Error submitting report');
-        return;
-      }
-      console.log('Report submitted successfully!');
-      res.status(201).send('Report submitted successfully!');
-    });
-  });
-  // report issue by id
-
-  app.get('/report/:id', (req, res) => {
-    const userId = req.header('userId');  // Extract the id parameter from the request URL
-    
-    // Fetch reports from the database for the specified user ID
-    connection.query('SELECT * FROM reportIssue WHERE userId = ?', userId, (error, results, fields) => {
-      if (error) {
-        console.error('Error fetching reports from database:', error);
-        res.status(500).send('Error fetching reports');
-        return;
+        console.error('Error retrieving callback requests:', error);
+        return res.status(500).send('Internal Server Error');
       }
       res.json(results);
     });
+  } else {
+    console.log('false');
+    connection.query('SELECT * FROM callbackRequest', (error, results) => {
+      if (error) {
+        console.error('Error retrieving callback requests:', error);
+        return res.status(500).send('Internal Server Error');
+      }
+      res.json(results);
+    });
+  }
 });
 //list af all users
 app.get('/users', (req, res) => {
   const userId = req.header('userId'); // Extract the userId from request headers
-
   // Check if userId header is missing or empty
   if (!userId) {
     return res.status(400).json({ message: 'userId header is required' });
@@ -465,8 +449,7 @@ app.get('/users/:userId', (req, res) => {
   if (!userId) {
     return res.status(400).json({ message: 'userId parameter is required' });
   }
-
-  const query = 'SELECT * FROM signup WHERE userId = ?';
+  const query = 'SELECT * FROM users WHERE userId = ?';
   connection.query(query, userId, (err, results) => {
     if (err) {
       console.error('Error fetching user:', err);
@@ -510,59 +493,9 @@ app.post('/sponsors', (req, res) => {
     res.status(201).json({ message: 'Sponsor added successfully' });
   });
 });
-// Route to fetch and display all sponsors
+
+// to fetch all the sponsors
 app.get('/sponsors', (req, res) => {
- const userId = req.header('userId'); // Extract the userId from request headers
-
-  // Check if userId header is missing or empty
-  if (!userId) {
-    return res.status(400).json({ message: 'userId header is required' });
-  }
-  const query = 'SELECT * FROM sponsors';
-  connection.query(query, (err, results) => {
-    if (err) {
-      console.error('Error fetching sponsors:', err);
-      res.status(500).json({ message: 'Internal server error' });
-      return;
-    }
-    if (results.length === 0) {
-      res.status(404).json({ message: 'No sponsors found' });
-      return;
-    }
-    res.status(200).json(results);
-  });
-});
-// add and display partners
-app.post('/partners', (req, res) => {
-  const userId = req.header('userId'); // Extract the userId from request headers
-
-  // Check if userId header is missing or empty
-  if (!userId) {
-    return res.status(400).json({ message: 'userId header is required' });
-  }
-  // Extract data from request body
-  const { name, link, contribution } = req.body;
-  
-  // Check if all required fields are provided
-  if (!name || !link || !contribution) {
-    return res.status(400).json({ message: 'All fields are required' });
-  }
-
-  // Prepare the SQL query to insert data into the partners table
-  const query = 'INSERT INTO partners (name, link, contribution) VALUES (?, ?, ?)';
-
-  // Execute the query with parameters
-  connection.query(query, [name, link, contribution], (err, results) => {
-    if (err) {
-      console.error('Error adding partner:', err);
-      return res.status(500).json({ message: 'Internal Server Error' });
-    }
-    res.status(201).json({ message: 'Partner added successfully' });
-  });
-});
-
-// GET endpoint to display all partners data
-app.get('/partners', (req, res) => {
   const userId = req.header('userId'); // Extract the userId from request headers
 
   // Check if userId header is missing or empty
@@ -570,7 +503,7 @@ app.get('/partners', (req, res) => {
     return res.status(400).json({ message: 'userId header is required' });
   }
   // Prepare the SQL query to select all data from the partners table
-  const query = 'SELECT * FROM partners';
+  const query = 'SELECT * FROM sponsors';
 
   // Execute the query
   connection.query(query, (err, results) => {
@@ -581,280 +514,253 @@ app.get('/partners', (req, res) => {
     res.status(200).json(results);
   });
 });
-//list of all the callbackrequests
-app.get('/callbackrequest', (req, res) => {
-  const userId = req.header('userId'); // Extract the userId from request headers
+// Endpoint to get a single sponsor by sponsorId
+app.get('/sponsors/:sponsorId', (req, res) => {
+  const sponsorId = req.params.sponsorId;
 
+  // Prepare the SQL query to select the sponsor with the specified sponsorId
+  const query = 'SELECT * FROM sponsors WHERE sponsorId = ?';
+
+  // Execute the query with the sponsorId parameter
+  connection.query(query, [sponsorId], (err, results) => {
+    if (err) {
+      console.error('Error fetching sponsor:', err);
+      return res.status(500).json({ message: 'Internal Server Error' });
+    }
+
+    // Check if a sponsor with the specified sponsorId was found
+    if (results.length === 0) {
+      return res.status(404).json({ message: 'Sponsor not found' });
+    }
+
+    // Send the retrieved sponsor as a JSON response
+    res.status(200).json(results[0]);
+  });
+});
+// add and display partners
+app.post('/partners', (req, res) => {
+  const userId = req.header('userId'); // Extract the userId from request headers
   // Check if userId header is missing or empty
   if (!userId) {
     return res.status(400).json({ message: 'userId header is required' });
   }
-  // Prepare the SQL query to select all data from the callbackRequest table
-  const query = 'SELECT * FROM callbackRequest';
-
-  // Execute the query
-  connection.query(query, (err, results) => {
+  // Extract data from request body
+  const { name, link } = req.body;
+  // Check if all required fields are provided
+  if (!name || !link ) {
+    return res.status(400).json({ message: 'All fields are required' });
+  }
+  // Prepare the SQL query to insert data into the partners table
+  const query = 'INSERT INTO partners (name, link) VALUES (?, ?)';
+  // Execute the query with parameters
+  connection.query(query, [name, link], (err, results) => {
     if (err) {
-      console.error('Error fetching callback requests:', err);
+      console.error('Error adding partner:', err);
       return res.status(500).json({ message: 'Internal Server Error' });
     }
-    res.status(200).json(results);
+    res.status(201).json({ message: 'Partner added successfully' });
   });
 });
-
-// GET endpoint to display a single callback request by its ID
-app.get('/callbackrequest/:userId', (req, res) => {
-  const userId = req.header('userId'); // Assuming you want to retrieve requestId from the header
-
-  // Check if requestId header is missing or empty
+// GET endpoint to display all partners data
+app.get('/partners', (req, res) => {
+  const userId = req.header('userId'); // Extract the userId from request headers
+  // Check if userId header is missing or empty
   if (!userId) {
     return res.status(400).json({ message: 'userId header is required' });
   }
-
-  // Prepare the SQL query to select callback requests for the specified request ID
-  const query = 'SELECT * FROM callbackRequest WHERE userId = ?';
-
-  // Execute the query with the requestId parameter
-  connection.query(query, userId, (err, results) => {
+  // Prepare the SQL query to select all data from the partners table
+  const query = 'SELECT * FROM partners';
+  // Execute the query
+  connection.query(query, (err, results) => {
     if (err) {
-      console.error('Error fetching callback requests:', err);
+      console.error('Error fetching partners:', err);
       return res.status(500).json({ message: 'Internal Server Error' });
     }
     res.status(200).json(results);
   });
 });
-
+// to fetch a specific partner
+app.get('/partners/:partnerId', (req, res) => {
+  const partnerId = req.params.partnerId;
+  // Prepare the SQL query to select the partner with the specified partnerId
+  const query = 'SELECT * FROM partners WHERE partnerId = ?';
+  // Execute the query with the partnerId parameter
+  connection.query(query, [partnerId], (err, results) => {
+    if (err) {
+      console.error('Error fetching partner:', err);
+      return res.status(500).json({ message: 'Internal Server Error' });
+    }
+    // Check if a partner with the specified partnerId was found
+    if (results.length === 0) {
+      return res.status(404).json({ message: 'Partner not found' });
+    }
+    // Send the retrieved partner as a JSON response
+    res.status(200).json(results[0]);
+  });
+});
 // list of all blood requirements
-app.get('/blood-requirement-cases', (req, res) => {
+app.get('/blood-requirement/:id?', (req, res) => {
+  console.log('entered');
+ 
   const userId = req.header('userId'); // Extract the userId from request headers
 
   // Check if userId header is missing or empty
   if (!userId) {
     return res.status(400).json({ message: 'userId header is required' });
   }
-  // Prepare the SQL query to select all data from the bloodRequirementCases table
-  const query = 'SELECT * FROM bloodRequirement';
-
-  // Execute the query
-  connection.query(query, (err, results) => {
-    if (err) {
-      console.error('Error fetching blood requirement cases:', err);
-      return res.status(500).json({ message: 'Internal Server Error' });
-    }
-    res.status(200).json(results);
-  });
-});
-
-//display single blood requirement case
-app.get('/blood-requirement-cases/:userId', (req, res) => {
-  const userId = req.header('userId');
-  if (!userId) {
-    return res.status(400).json({ message: 'userId header is required' });
+  // If an ID is provided in the URL, fetch a single blood requirement case by that ID
+  if (req.params.id) {
+    console.log('true');
+    connection.query('SELECT * FROM bloodRequirement WHERE id = ?', req.params.id, (error, results) => {
+      if (error) {
+        console.error('Error retrieving blood requirement case:', error);
+        return res.status(500).json({ message: 'Internal Server Error' });
+      }
+      res.json(results);
+    });
+  } else {
+    console.log('false');
+    // If no ID is provided, retrieve all blood requirement cases for the user
+    connection.query('SELECT * FROM bloodRequirement WHERE userId = ?', userId, (error, results) => {
+      if (error) {
+        console.error('Error retrieving blood requirement cases:', error);
+        return res.status(500).json({ message: 'Internal Server Error' });
+      }
+      res.json(results);
+    });
   }
-  // Prepare the SQL query to select the blood requirement case with the specified ID
-  const query = 'SELECT * FROM bloodRequirement WHERE userId = ?';
-
-  // Execute the query with the caseId parameter
-  connection.query(query, userId, (err, results) => {
-    if (err) {
-      console.error('Error fetching blood requirement case:', err);
-      return res.status(500).json({ message: 'Internal Server Error' });
-    }
-    
-    // Check if a case with the specified ID was found
-    if (results.length === 0) {
-      return res.status(404).json({ message: 'Blood requirement case not found' });
-    }
-    
-    // Send the retrieved case as a JSON response
-    res.status(200).json(results[0]);
-  });
 });
-
 // list of all reported issues
-app.get('/reportedissues', (req, res) => {
+app.get('/reportedissues/:id?', (req, res) => {
+  console.log('entered');
   const userId = req.header('userId'); // Extract the userId from request headers
-
   // Check if userId header is missing or empty
   if (!userId) {
     return res.status(400).json({ message: 'userId header is required' });
   }
-  // Prepare the SQL query to select all data from the bloodRequirementCases table
-  const query = 'SELECT * FROM reportIssue';
-
-  // Execute the query
-  connection.query(query, (err, results) => {
-    if (err) {
-      console.error('Error fetching reported issue:', err);
-      return res.status(500).json({ message: 'Internal Server Error' });
-    }
-    res.status(200).json(results);
-  });
-});
-// fetching single reported issue
-app.get('/reportedissues/:userId', (req, res) => {
-  const userId = req.header('userId');
-  if (!userId) {
-    return res.status(400).json({ message: 'userId header is required' });
+  // If an ID is provided in the URL, fetch a single reported issue by that ID
+  if (req.params.id) {
+    console.log('true');
+    connection.query('SELECT * FROM reportIssue WHERE Id = ?', req.params.id, (error, results) => {
+      if (error) {
+        console.error('Error retrieving reported issue:', error);
+        return res.status(500).send('Internal Server Error');
+      }
+      res.json(results);
+    });
+  } else {
+    console.log('false');
+    // If no ID is provided, retrieve all reported issues
+    connection.query('SELECT * FROM reportIssue', (error, results) => {
+      if (error) {
+        console.error('Error retrieving reported issues:', error);
+        return res.status(500).send('Internal Server Error');
+      }
+      res.json(results);
+    });
   }
-  // Prepare the SQL query to select the blood requirement case with the specified ID
-  const query = 'SELECT * FROM reportIssue WHERE userId = ?';
-
-  // Execute the query with the caseId parameter
-  connection.query(query, userId, (err, results) => {
-    if (err) {
-      console.error('Error fetching reported issue:', err);
-      return res.status(500).json({ message: 'Internal Server Error' });
-    }
-    
-    // Check if a case with the specified ID was found
-    if (results.length === 0) {
-      return res.status(404).json({ message: 'reported issue not found' });
-    }
-    
-    // Send the retrieved case as a JSON response
-    res.status(200).json(results[0]);
-  });
 });
-
 // list of all bloodcheckups
-app.get('/bloodchekups', (req, res) => {
+app.get('/bloodcheckups/:id?', (req, res) => {
   const userId = req.header('userId'); // Extract the userId from request headers
 
   // Check if userId header is missing or empty
   if (!userId) {
     return res.status(400).json({ message: 'userId header is required' });
   }
-  // Prepare the SQL query to select all data from the bloodRequirementCases table
-  const query = 'SELECT * FROM bloodCheckup';
-
-  // Execute the query
-  connection.query(query, (err, results) => {
-    if (err) {
-      console.error('Error fetching bloodchekups report:', err);
-      return res.status(500).json({ message: 'Internal Server Error' });
-    }
-    res.status(200).json(results);
-  });
-});
-
-// fetching single blood chekup report
-app.get('/bloodcheckups', (req, res) => {
-  const userId = req.header('userId'); // Get the user ID from the request headers
-
-  // Check if userId header is missing or empty
-  if (!userId) {
-    return res.status(400).json({ message: 'userId header is required' });
+  // Retrieve blood checkups based on ID if provided, otherwise retrieve all blood checkups
+  if (req.params.id) {
+    // Fetch a single blood checkup report based on the provided ID
+    connection.query('SELECT * FROM bloodCheckup WHERE id = ?', req.params.id, (error, results) => {
+      if (error) {
+        console.error('Error retrieving blood checkup report:', error);
+        return res.status(500).send('Internal Server Error');
+      }
+      // Check if the blood checkup report with the specified ID was found
+      if (results.length === 0) {
+        return res.status(404).json({ message: 'Blood checkup report not found' });
+      }
+      // Send the retrieved blood checkup report as a JSON response
+      res.json(results[0]);
+    });
+  } else {
+    // Fetch all blood checkup reports
+    connection.query('SELECT * FROM bloodCheckup', (error, results) => {
+      if (error) {
+        console.error('Error retrieving blood checkup reports:', error);
+        return res.status(500).send('Internal Server Error');
+      }
+      // Send all retrieved blood checkup reports as a JSON response
+      res.json(results);
+    });
   }
-
-  // Prepare the SQL query to select the blood checkup reports for the specified user ID
-  const query = 'SELECT * FROM bloodCheckup WHERE userId = ?';
-
-  // Execute the query with the userId parameter
-  connection.query(query, userId, (err, results) => {
-    if (err) {
-      console.error('Error fetching blood checkup reports:', err);
-      return res.status(500).json({ message: 'Internal Server Error' });
-    }
-    
-    // Check if any reports were found for the specified user ID
-    if (results.length === 0) {
-      return res.status(404).json({ message: 'Blood checkup reports not found' });
-    }
-    
-    // Send the retrieved reports as a JSON response
-    res.status(200).json(results);
-  });
 });
-
 //list of all the bloodemergency
-app.get('/bloodEmergency', (req, res) => {
+// GET endpoint to retrieve blood emergency reports
+app.get('/bloodEmergency/:userId?', (req, res) => {
   const userId = req.header('userId'); // Extract the userId from request headers
 
   // Check if userId header is missing or empty
   if (!userId) {
     return res.status(400).json({ message: 'userId header is required' });
   }
-  
-  // Prepare the SQL query to select all data from the bloodEmergency table
-  const query = 'SELECT * FROM bloodEmergency';
-
-  // Execute the query
-  connection.query(query, (err, results) => {
-    if (err) {
-      console.error('Error fetching callback requests:', err);
-      return res.status(500).json({ message: 'Internal Server Error' });
-    }
-    res.status(200).json(results);
-  });
-});
-
-// GET endpoint to display a single callback request by its ID
-app.get('/bloodEmergency/:userId', (req, res) => {
-  const userId = req.header('userId'); // Assuming you want to retrieve requestId from the header
-
-  // Check if requestId header is missing or empty
-  if (!userId) {
-    return res.status(400).json({ message: 'userId header is required' });
+  // If userId is provided in the URL, retrieve blood emergency reports for that user
+  if (req.params.userId) {
+    const userIdParam = req.params.userId;
+    // Prepare the SQL query to select blood emergency reports for the specified userId
+    const query = 'SELECT * FROM bloodEmergency WHERE userId = ?';
+    // Execute the query with the userId parameter
+    connection.query(query, userIdParam, (err, results) => {
+      if (err) {
+        console.error('Error fetching blood emergency reports:', err);
+        return res.status(500).json({ message: 'Internal Server Error' });
+      }
+      res.status(200).json(results);
+    });
+  } else {
+    // If userId is not provided in the URL, retrieve all blood emergency reports
+    // Prepare the SQL query to select all data from the bloodEmergency table
+    const query = 'SELECT * FROM bloodEmergency';
+    // Execute the query
+    connection.query(query, (err, results) => {
+      if (err) {
+        console.error('Error fetching blood emergency reports:', err);
+        return res.status(500).json({ message: 'Internal Server Error' });
+      }
+      res.status(200).json(results);
+    });
   }
-
-  // Prepare the SQL query to select callback requests for the specified request ID
-  const query = 'SELECT * FROM bloodEmergency WHERE userId = ?';
-
-  // Execute the query with the requestId parameter
-  connection.query(query, userId, (err, results) => {
-    if (err) { 
-      console.error('Error fetching callback requests:', err);
-      return res.status(500).json({ message: 'Internal Server Error' });
-    }
-    res.status(200).json(results);
-  });
 });
-
 // list of anonymous report
-
-app.get('/anonymousreport', (req, res) => {
+app.get('/anonymousreport/:id?', (req, res) => {
+  console.log('entered');
   const userId = req.header('userId'); // Extract the userId from request headers
-
   // Check if userId header is missing or empty
   if (!userId) {
     return res.status(400).json({ message: 'userId header is required' });
   }
-  
-  // Prepare the SQL query to select all data from the bloodEmergency table
-  const query = 'SELECT * FROM anonymousReport';
-
-  // Execute the query
-  connection.query(query, (err, results) => {
-    if (err) {
-      console.error('Error fetching anonymousreport:', err);
-      return res.status(500).json({ message: 'Internal Server Error' });
-    }
-    res.status(200).json(results);
-  });
-});
-//to fetch a single report
-app.get('/anonymousreport/:userId', (req, res) => {
-  const userId = req.header('userId'); // Assuming you want to retrieve requestId from the header
-
-  // Check if requestId header is missing or empty
-  if (!userId) {
-    return res.status(400).json({ message: 'userId header is required' });
+  // If an ID is provided in the URL, fetch a single anonymous report by that ID
+  if (req.params.id) {
+    console.log('true');
+    connection.query('SELECT * FROM anonymousReport WHERE id = ?', req.params.id, (error, results) => {
+      if (error) {
+        console.error('Error retrieving anonymous report:', error);
+        return res.status(500).json({ message: 'Internal Server Error' });
+      }
+      res.json(results);
+    });
+  } else {
+    console.log('false');
+    // If no ID is provided, retrieve all anonymous reports
+    connection.query('SELECT * FROM anonymousReport', (error, results) => {
+      if (error) {
+        console.error('Error retrieving anonymous reports:', error);
+        return res.status(500).json({ message: 'Internal Server Error' });
+      }
+      res.json(results);
+    });
   }
-
-  // Prepare the SQL query to select callback requests for the specified request ID
-  const query = 'SELECT * FROM anonymousReport WHERE userId = ?';
-
-  // Execute the query with the requestId parameter
-  connection.query(query, userId, (err, results) => {
-    if (err) {
-      console.error('Error fetching anonymousreport:', err);
-      return res.status(500).json({ message: 'Internal Server Error' });
-    }
-    res.status(200).json(results);
-  });
 });
-
 // Start the server
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {

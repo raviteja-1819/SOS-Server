@@ -158,14 +158,27 @@ app.post('/add-contact/:person', validateFields, (req, res) => {
 });
 // POST endpoint to handle blood checkup creation
 app.post('/bloodcheckup', validateFields, (req, res, next) => {
-  console.log('Request body:', req.body); // Log the request body
-
+  // Destructure fields from request body
   const { userId, name, mobileNumber, place, pincode, status, coordinatesLatitude, coordinatesLongitude } = req.body;
-
+  
+  // Check if any required field is missing
   if (!userId || !name || !mobileNumber || !place || !pincode || !status || !coordinatesLatitude || !coordinatesLongitude) {
+    console.log('All fields are required');
     return res.status(400).json({ error: 'All fields are required' });
   }
-  
+
+  // Log the data being written
+  console.log('Data being written to bloodCheckup table:', {
+    userId,
+    name,
+    mobileNumber,
+    place,
+    pincode,
+    status,
+    coordinatesLatitude,
+    coordinatesLongitude
+  });
+
   // Generate unique Id with 8 characters
   const Id = uuid.v4().substring(0, 8);
 
@@ -183,36 +196,46 @@ app.post('/bloodcheckup', validateFields, (req, res, next) => {
     }
   );
 });
-// Updated route definition to accept userId as a query parameter
-app.get('/bloodcheckup', (req, res) => {
+// list of all bloodcheckups
+app.get('/bloodcheckup/:id?', (req, res) => {
+  console.log('entered');
   const userId = req.header('userId'); // Extract the userId from request headers
+
   // Check if userId header is missing or empty
   if (!userId) {
     return res.status(400).json({ message: 'userId header is required' });
   }
-  connection.query('SELECT * FROM bloodCheckup WHERE userId = ?', userId, (err, results) => {
-    if (err) {
-      console.error('Error retrieving blood checkup:', err);
-      return res.status(500).json({ message: 'Error retrieving blood checkup' });
-    }
-    // If blood checkup not found, return 404
-    if (results.length === 0) {
-      return res.status(404).json({ message: 'Blood checkup not found' });
-    }
-    // Send the retrieved blood checkup data in the response
-    const bloodCheckup = results[0];
-    res.json(bloodCheckup);
-  });
-});
-app.use(express.json());
-// Define the validateFields middleware function
-function validateFields(req, res, next) {
-  const { userId,name, relation, mobilenumber, coordinatesLatitude, coordinatesLongitude } = req.body;
-  if (!userId||!name || !relation || !mobilenumber  || !coordinatesLatitude || !coordinatesLongitude) {
-    return res.status(400).json({ error: 'all fields are required' });
+
+  // Retrieve blood checkups based on ID if provided, otherwise retrieve all blood checkups
+  if (req.params.id) {
+    console.log('true');
+    // Fetch a single blood checkup report based on the provided ID
+    connection.query('SELECT * FROM bloodCheckup WHERE userId = ?', req.params.id, (error, results) => {
+      if (error) {
+        console.error('Error retrieving blood checkup report:', error);
+        return res.status(500).send('Internal Server Error');
+      }
+      // Check if the blood checkup report with the specified ID was found
+      if (results.length === 0) {
+        return res.status(404).json({ message: 'Blood checkup report not found' });
+      }
+      // Send the retrieved blood checkup report as a JSON response
+      res.json(results[0]);
+    });
+  } else {
+    console.log('false');
+    // Fetch all blood checkup reports
+    connection.query('SELECT * FROM bloodCheckup', (error, results) => {
+      if (error) {
+        console.error('Error retrieving blood checkup reports:', error);
+        return res.status(500).send('Internal Server Error');
+      }
+      // Send all retrieved blood checkup reports as a JSON response
+      res.json(results);
+    });
   }
-  next();
-}
+});
+
   // anonymous report
   function insertanonymousReport(reportData) {
     return new Promise((resolve, reject) => {
@@ -228,11 +251,12 @@ function validateFields(req, res, next) {
   }
   // post anonymous reports
   app.post('/anonymousreport', (req, res) => {
+    console.log(JSON.stringify(req.body));
       const { userId, date, time, placeOfIncident, subject, explainInBreif, coordinatesLatitude, coordinatesLongitude, status } = req.body;
     
       // Validate if all fields are provided
       if (!userId || !date || !time || !placeOfIncident || !subject || !explainInBreif || !coordinatesLatitude || !coordinatesLongitude || !status) {
-        console.log("userId:", userId, "\ndate:", date, "\ntime:", time, "\nplaceOfIncident:", placeOfIncident, "\nsubject:", subject, "\nexplainInBreif:", explainInBreif, "\ncoordinatesLatitude:", coordinatesLatitude, "\ncoordinatesLongitude:", coordinatesLongitude);
+        
         return res.status(400).send('All fields are required');
       }
     
@@ -280,8 +304,39 @@ function validateFields(req, res, next) {
       res.json(results);
     });
   });
+  // fetch anonymous data of all the users 
+  app.get('/anonymousreports/:id?', (req, res) => {
+    console.log('entered');
+    const userId = req.header('userId'); // Extract the userId from request headers
+    // Check if userId header is missing or empty
+    if (!userId) {
+      return res.status(400).json({ message: 'userId header is required' });
+    }
+    // If an ID is provided in the URL, fetch a single anonymous report by that ID
+    if (req.params.id) {
+      console.log('true');
+      connection.query('SELECT * FROM anonymousReport WHERE id = ?', req.params.id, (error, results) => {
+        if (error) {
+          console.error('Error retrieving anonymous report:', error);
+          return res.status(500).json({ message: 'Internal Server Error' });
+        }
+        res.json(results);
+      });
+    } else {
+      console.log('false');
+      // If no ID is provided, retrieve all anonymous reports
+      connection.query('SELECT * FROM anonymousReport', (error, results) => {
+        if (error) {
+          console.error('Error retrieving anonymous reports:', error);
+          return res.status(500).json({ message: 'Internal Server Error' });
+        }
+        res.json(results);
+      });
+    }
+  });
   // bloodemergency
 app.post('/blood-emergency', (req, res) => {
+  console.log(JSON.stringify(req.body));
     const {
         userId,
         patientName,
@@ -303,7 +358,7 @@ app.post('/blood-emergency', (req, res) => {
     }
 
     // Insert blood emergency request into the database
-    const query = 'INSERT INTO BloodEmergency (Id, userId, patientName, bloodType, mobileNumber, hospitalName, hospitalAddress, location, pincode, purposeOfBlood, coordinatesLatitude, coordinatesLongitude, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)';
+    const query = 'INSERT INTO bloodEmergency (Id, userId, patientName, bloodType, mobileNumber, hospitalName, hospitalAddress, location, pincode, purposeOfBlood, coordinatesLatitude, coordinatesLongitude, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)';
     const values = [Id, userId, patientName, bloodType, mobileNumber, hospitalName, hospitalAddress, location, pincode, purposeOfBlood, coordinatesLatitude, coordinatesLongitude, status];
     
     connection.query(query, values, (error, results) => {
@@ -321,7 +376,7 @@ app.get('/blood-emergency', (req, res) => {
     return res.status(400).json({ message: 'userId parameter is required' });
   }
   // Query the database to retrieve blood emergency data for the specified userId
-  connection.query('SELECT * FROM BloodEmergency WHERE userId = ?', userId, (err, results) => {
+  connection.query('SELECT * FROM bloodEmergency WHERE userId = ?', userId, (err, results) => {
     if (err) {
       console.error('Error retrieving blood emergency:', err);
       return res.status(500).send('Internal Server Error');
@@ -329,8 +384,45 @@ app.get('/blood-emergency', (req, res) => {
     res.json(results);
   });
 });
+//list of all the bloodemergency
+app.get('/bloodEmergency/:userId?', (req, res) => {
+  const userId = req.header('userId'); // Extract the userId from request headers
+  // Check if userId header is missing or empty
+  if (!userId) {
+    return res.status(400).json({ message: 'userId header is required' });
+  }
+  
+  // If userId is provided in the URL, retrieve blood emergency reports for that user
+  if (req.params.userId) {
+    const userIdParam = req.params.userId;
+    // Prepare the SQL query to select blood emergency reports for the specified userId
+    const query = 'SELECT * FROM bloodEmergency WHERE userId = ?';
+    // Execute the query with the userId parameter
+    connection.query(query, userIdParam, (err, results) => {
+      if (err) {
+        console.error('Error fetching blood emergency reports:', err);
+        return res.status(500).json({ message: 'Internal Server Error' });
+      }
+      res.status(200).json(results);
+    });
+  } else {
+    // If userId is not provided in the URL, retrieve all blood emergency reports
+    // Prepare the SQL query to select all data from the bloodEmergency table
+    const query = 'SELECT * FROM bloodEmergency';
+    // Execute the query
+    connection.query(query, (err, results) => {
+      if (err) {
+        console.error('Error fetching blood emergency reports:', err);
+        return res.status(500).json({ message: 'Internal Server Error' });
+      }
+      res.status(200).json(results);
+    });
+  }
+});
+
 // blood requirements
 app.post('/blood-requirements', async (req, res) => {
+  console.log(JSON.stringify(req.body));
   const { userId, patientName, date, time, bloodType, mobileNumber, hospitalName, hospitalAddress, purposeOfBlood, pincode, status, coordinatesLatitude, coordinatesLongitude } = req.body;
 
   // Generate unique Id
@@ -388,35 +480,77 @@ app.get('/blood-requirements', async (req, res) => {
     res.status(500).send('Internal Server Error');
   }
 });
+// list of all blood requirements
+app.get('/blood-requirement/:id?', (req, res) => {
+  console.log('entered');
+  const userId = req.header('userId'); // Extract the userId from request headers
+  // Check if userId header is missing or empty
+  if (!userId) {
+    return res.status(400).json({ message: 'userId header is required' });
+  }
+  // If an ID is provided in the URL, fetch a single blood requirement case by that ID
+  if (req.params.id) {
+    console.log('true');
+    connection.query('SELECT * FROM bloodRequirement WHERE id = ?', req.params.id, (error, results) => {
+      if (error) {
+        console.error('Error retrieving blood requirement case:', error);
+        return res.status(500).json({ message: 'Internal Server Error' });
+      }
+      res.json(results);
+    });
+  } else {
+    console.log('false');
+    // If no ID is provided, retrieve all blood requirement cases for the user
+    connection.query('SELECT * FROM bloodRequirement WHERE userId = ?', userId, (error, results) => {
+      if (error) {
+        console.error('Error retrieving blood requirement cases:', error);
+        return res.status(500).json({ message: 'Internal Server Error' });
+      }
+      res.json(results);
+    });
+  }
+});
 // Callback requests
 app.post('/callback', (req, res) => {
-    const { userId, name, date, time,place, mobileNumber, subject, topictospeakabout, status, coordinatesLatitude, coordinatesLongitude } = req.body;
+  console.log(JSON.stringify(req.body));
+  const { userId, name, date, time, place, mobileNumber, subject, topictospeakabout, status, coordinatesLatitude, coordinatesLongitude } = req.body;
 
-    if (!userId || !name || !date || !time ||!place|| !mobileNumber || !subject || !topictospeakabout || !status || !coordinatesLatitude || !coordinatesLongitude) {
-        return res.status(400).send('All fields are required');
+  // Check if any required field is missing
+  if (!userId || !name || !date || !time || !place || !mobileNumber || !subject || !topictospeakabout || !status || !coordinatesLatitude || !coordinatesLongitude) {
+    return res.status(400).send('All fields are required');
+  }
+
+  // Generate unique Id with 8 characters
+  const Id = uuid.v4().substring(0, 8);
+
+  const callbackRequest = {
+    Id,
+    userId,
+    name,
+    date,
+    time,
+    place,
+    mobileNumber,
+    subject,
+    topictospeakabout,
+    status,
+    coordinatesLatitude,
+    coordinatesLongitude
+  };
+
+  // Insert callback request into the database
+  connection.query(
+    'INSERT INTO callbackRequest (Id, userId, name, date, time, place, mobileNumber, subject, topictospeakabout, status, coordinatesLatitude, coordinatesLongitude) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+    [Id, userId, name, date, time, place, mobileNumber, subject, topictospeakabout, status, coordinatesLatitude, coordinatesLongitude],
+    (error, results) => {
+      if (error) {
+        console.error('Error inserting callback request:', error);
+        return res.status(500).send('Internal Server Error');
+      }
+      console.log('Callback request inserted successfully');
+      res.status(201).send('Callback request received');
     }
-    const callbackRequest = {
-        userId,
-        name,
-        date,
-        time,
-        place,
-        mobileNumber,
-        subject,
-        topictospeakabout,
-        status,
-        coordinatesLatitude,
-        coordinatesLongitude
-    };
-    // Insert callback request into the database
-    connection.query('INSERT INTO callbackRequest SET ?', callbackRequest, (error, results) => {
-        if (error) {
-            console.error('Error inserting callback request:', error);
-            return res.status(500).send('Internal Server Error');
-        }
-        console.log('Callback request inserted successfully');
-        res.status(201).send('Callback request received');
-    });
+  );
 });
 // Endpoint to retrieve all callback requests
 app.get('/callback/:id?', (req, res) => {
@@ -452,43 +586,42 @@ app.get('/callback/:id?', (req, res) => {
   }
 });
 //list af all users
-app.get('/users', (req, res) => {
-  const userId = req.header('userId'); // Extract the userId from request headers
+app.get('/users/:userId?', (req, res) => {
+  console.log('entered');
+
+  // Extract the userId from request headers
+  const userId = req.header('userId');
+
   // Check if userId header is missing or empty
   if (!userId) {
-    return res.status(400).json({ message: 'userId header is required' });
+      return res.status(400).json({ message: 'userId header is required' });
   }
-  const query = 'SELECT * FROM signup';
-  connection.query(query, (err, results) => {
-    if (err) {
-      console.error('Error fetching users:', err);
-      res.status(500).json({ message: 'Internal server error' });
-      return;
-    }
-    res.status(200).json(results);
-  });
-});
-// to fetch a single user using userID
-app.get('/users/:userId', (req, res) => {
-  const userId = req.header('userId'); 
-  // Check if userId is provided in the route parameters
-  if (!userId) {
-    return res.status(400).json({ message: 'userId parameter is required' });
+
+  // Retrieve all users or a single user based on the presence of userId parameter
+  if (req.params.userId) {
+      console.log('true');
+      const query = 'SELECT * FROM users WHERE userId = ?';
+      connection.query(query, req.params.userId, (error, results) => {
+          if (error) {
+              console.error('Error retrieving user:', error);
+              return res.status(500).send('Internal Server Error');
+          }
+          if (results.length === 0) {
+              return res.status(404).json({ message: 'User not found' });
+          }
+          res.json(results[0]);
+      });
+  } else {
+      console.log('false');
+      const query = 'SELECT * FROM signup';
+      connection.query(query, (error, results) => {
+          if (error) {
+              console.error('Error fetching users:', error);
+              return res.status(500).json({ message: 'Internal server error' });
+          }
+          res.status(200).json(results);
+      });
   }
-  const query = 'SELECT * FROM users WHERE userId = ?';
-  connection.query(query, userId, (err, results) => {
-    if (err) {
-      console.error('Error fetching user:', err);
-      res.status(500).json({ message: 'Internal server error' });
-      return;
-    }
-    // Check if user was found
-    if (results.length === 0) {
-      res.status(404).json({ message: 'User not found' });
-      return;
-    }
-    res.status(200).json(results[0]);
-  });
 });
 // list of sponsors
 app.post('/sponsors', (req, res) => {
@@ -516,42 +649,45 @@ app.post('/sponsors', (req, res) => {
   });
 });
 // to fetch all the sponsors
-app.get('/sponsors', (req, res) => {
-  const userId = req.header('userId'); // Extract the userId from request headers
+app.get('/sponsors/:userId?', (req, res) => {
+  console.log('entered');
+
+  // Extract the userId from request headers
+  const userId = req.header('userId');
+
   // Check if userId header is missing or empty
   if (!userId) {
-    return res.status(400).json({ message: 'userId header is required' });
+      return res.status(400).json({ message: 'userId header is required' });
   }
-  // Prepare the SQL query to select all data from the partners table
-  const query = 'SELECT * FROM sponsors';
-  // Execute the query
-  connection.query(query, (err, results) => {
-    if (err) {
-      console.error('Error fetching partners:', err);
-      return res.status(500).json({ message: 'Internal Server Error' });
-    }
-    res.status(200).json(results);
-  });
+
+  // Retrieve all sponsors or a single sponsor based on the presence of userId parameter
+  if (req.params.userId) {
+      console.log('true');
+      const query = 'SELECT * FROM sponsors WHERE userId = ?';
+      connection.query(query, req.params.userId, (error, results) => {
+          if (error) {
+              console.error('Error retrieving sponsors:', error);
+              return res.status(500).send('Internal Server Error');
+          }
+          if (results.length === 0) {
+              return res.status(404).json({ message: 'Sponsors not found' });
+          }
+          res.json(results[0]);
+      });
+  } else {
+      console.log('false');
+      const query = 'SELECT * FROM sponsors';
+      connection.query(query, (error, results) => {
+          if (error) {
+              console.error('Error fetching sponsors:', error);
+              return res.status(500).json({ message: 'Internal server error' });
+          }
+          res.status(200).json(results);
+      });
+  }
 });
-// Endpoint to get a single sponsor by sponsorId
-app.get('/sponsors/:sponsorId', (req, res) => {
-  const sponsorId = req.params.sponsorId;
-  // Prepare the SQL query to select the sponsor with the specified sponsorId
-  const query = 'SELECT * FROM sponsors WHERE sponsorId = ?';
-  // Execute the query with the sponsorId parameter
-  connection.query(query, [sponsorId], (err, results) => {
-    if (err) {
-      console.error('Error fetching sponsor:', err);
-      return res.status(500).json({ message: 'Internal Server Error' });
-    }
-    // Check if a sponsor with the specified sponsorId was found
-    if (results.length === 0) {
-      return res.status(404).json({ message: 'Sponsor not found' });
-    }
-    // Send the retrieved sponsor as a JSON response
-    res.status(200).json(results[0]);
-  });
-});
+
+
 // add and display partners
 app.post('/partners', (req, res) => {
   const userId = req.header('userId'); // Extract the userId from request headers
@@ -594,179 +730,87 @@ app.get('/partners', (req, res) => {
     res.status(200).json(results);
   });
 });
-// to fetch a specific partner
-app.get('/partners/:partnerId', (req, res) => {
-  const partnerId = req.params.partnerId;
-  // Prepare the SQL query to select the partner with the specified partnerId
-  const query = 'SELECT * FROM partners WHERE partnerId = ?';
-  // Execute the query with the partnerId parameter
-  connection.query(query, [partnerId], (err, results) => {
-    if (err) {
-      console.error('Error fetching partner:', err);
-      return res.status(500).json({ message: 'Internal Server Error' });
-    }
-    // Check if a partner with the specified partnerId was found
-    if (results.length === 0) {
-      return res.status(404).json({ message: 'Partner not found' });
-    }
-    // Send the retrieved partner as a JSON response
-    res.status(200).json(results[0]);
-  });
-});
-// list of all blood requirements
-app.get('/blood-requirement/:id?', (req, res) => {
-  console.log('entered');
-  const userId = req.header('userId'); // Extract the userId from request headers
-  // Check if userId header is missing or empty
-  if (!userId) {
-    return res.status(400).json({ message: 'userId header is required' });
+
+// report an issue
+app.post('/reportedissues', (req, res) => {
+  console.log(JSON.stringify(req.body));
+  const {
+    userId,
+    name,
+    date,
+    time,
+    email,
+    mobileNumber,
+    subject,
+    explainInBreif,
+    status,
+    coordinatesLatitude,
+    coordinatesLongitude
+  } = req.body;
+
+  // Validate if all fields are provided
+  if (!userId || !name || !date || !time || !email || !mobileNumber || !subject || !explainInBreif || !coordinatesLatitude || !coordinatesLongitude || !status) {
+    return res.status(400).send('All fields are required');
   }
-  // If an ID is provided in the URL, fetch a single blood requirement case by that ID
-  if (req.params.id) {
-    console.log('true');
-    connection.query('SELECT * FROM bloodRequirement WHERE id = ?', req.params.id, (error, results) => {
-      if (error) {
-        console.error('Error retrieving blood requirement case:', error);
-        return res.status(500).json({ message: 'Internal Server Error' });
-      }
-      res.json(results);
-    });
-  } else {
-    console.log('false');
-    // If no ID is provided, retrieve all blood requirement cases for the user
-    connection.query('SELECT * FROM bloodRequirement WHERE userId = ?', userId, (error, results) => {
-      if (error) {
-        console.error('Error retrieving blood requirement cases:', error);
-        return res.status(500).json({ message: 'Internal Server Error' });
-      }
-      res.json(results);
-    });
+
+  // Validate date format
+  const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
+  if (!dateRegex.test(date)) {
+    console.log('Invalid date format');
+    return res.status(400).send('Invalid date format. Date should be in YYYY-MM-DD format');
   }
-});
-// list of all reported issues
-app.get('/reportedissues/:id?', (req, res) => {
-  console.log('entered');
-  const userId = req.header('userId'); // Extract the userId from request headers
-  // Check if userId header is missing or empty
-  if (!userId) {
-    return res.status(400).json({ message: 'userId header is required' });
+
+  // Validate time format
+  const timeRegex = /^([01]\d|2[0-3]):([0-5]\d)$/;
+  if (!timeRegex.test(time)) {
+    console.log('Invalid time format');
+    return res.status(400).send('Invalid time format. Time should be in HH:MM format (24-hour)');
   }
-  // If an ID is provided in the URL, fetch a single reported issue by that ID
-  if (req.params.id) {
-    console.log('true');
-    connection.query('SELECT * FROM reportIssue WHERE Id = ?', req.params.id, (error, results) => {
+
+  // Generate unique 8-character ID
+  const Id = uuid.v4().substring(0, 8);
+
+  // Insert report data into the database
+  connection.query(
+    'INSERT INTO reportIssue (Id, userId, name, date, time, email, mobileNumber, subject, explainInBreif, coordinatesLatitude, coordinatesLongitude, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+    [Id, userId, name, date, time, email, mobileNumber, subject, explainInBreif, coordinatesLatitude, coordinatesLongitude, status],
+    (error, result) => {
       if (error) {
-        console.error('Error retrieving reported issue:', error);
+        console.error('Error inserting details into reportIssue:', error);
         return res.status(500).send('Internal Server Error');
       }
-      res.json(results);
-    });
-  } else {
-    console.log('false');
-    // If no ID is provided, retrieve all reported issues
-    connection.query('SELECT * FROM reportIssue', (error, results) => {
+      console.log('Issue report submitted successfully');
+      res.status(201).send('Report submitted successfully!');
+    }
+  );
+});
+// fetch the reported issues
+app.get('/reportedissues/:userId?', (req, res) => {
+  console.log('entered');
+ 
+  const userId = req.header('userId'); // Extract the userId from request headers
+
+  // Check if userId header is missing or empty
+  if (!userId) {
+    return res.status(400).json({ message: 'userId header is required' });
+  }
+
+  // Retrieve all reported issues from the database
+  if (req.params.userId) {
+    console.log('true');
+    connection.query('SELECT * FROM reportIssue WHERE userId = ?', req.params.userId, (error, results) => {
       if (error) {
         console.error('Error retrieving reported issues:', error);
         return res.status(500).send('Internal Server Error');
       }
       res.json(results);
     });
-  }
-});
-// list of all bloodcheckups
-app.get('/bloodcheckups/:id?', (req, res) => {
-  const userId = req.header('userId'); // Extract the userId from request headers
-  // Check if userId header is missing or empty
-  if (!userId) {
-    return res.status(400).json({ message: 'userId header is required' });
-  }
-  // Retrieve blood checkups based on ID if provided, otherwise retrieve all blood checkups
-  if (req.params.id) {
-    // Fetch a single blood checkup report based on the provided ID
-    connection.query('SELECT * FROM bloodCheckup WHERE id = ?', req.params.id, (error, results) => {
-      if (error) {
-        console.error('Error retrieving blood checkup report:', error);
-        return res.status(500).send('Internal Server Error');
-      }
-      // Check if the blood checkup report with the specified ID was found
-      if (results.length === 0) {
-        return res.status(404).json({ message: 'Blood checkup report not found' });
-      }
-      // Send the retrieved blood checkup report as a JSON response
-      res.json(results[0]);
-    });
-  } else {
-    // Fetch all blood checkup reports
-    connection.query('SELECT * FROM bloodCheckup', (error, results) => {
-      if (error) {
-        console.error('Error retrieving blood checkup reports:', error);
-        return res.status(500).send('Internal Server Error');
-      }
-      // Send all retrieved blood checkup reports as a JSON response
-      res.json(results);
-    });
-  }
-});
-//list of all the bloodemergency
-// GET endpoint to retrieve blood emergency reports
-app.get('/bloodEmergency/:userId?', (req, res) => {
-  const userId = req.header('userId'); // Extract the userId from request headers
-  // Check if userId header is missing or empty
-  if (!userId) {
-    return res.status(400).json({ message: 'userId header is required' });
-  }
-  // If userId is provided in the URL, retrieve blood emergency reports for that user
-  if (req.params.userId) {
-    const userIdParam = req.params.userId;
-    // Prepare the SQL query to select blood emergency reports for the specified userId
-    const query = 'SELECT * FROM bloodEmergency WHERE userId = ?';
-    // Execute the query with the userId parameter
-    connection.query(query, userIdParam, (err, results) => {
-      if (err) {
-        console.error('Error fetching blood emergency reports:', err);
-        return res.status(500).json({ message: 'Internal Server Error' });
-      }
-      res.status(200).json(results);
-    });
-  } else {
-    // If userId is not provided in the URL, retrieve all blood emergency reports
-    // Prepare the SQL query to select all data from the bloodEmergency table
-    const query = 'SELECT * FROM bloodEmergency';
-    // Execute the query
-    connection.query(query, (err, results) => {
-      if (err) {
-        console.error('Error fetching blood emergency reports:', err);
-        return res.status(500).json({ message: 'Internal Server Error' });
-      }
-      res.status(200).json(results);
-    });
-  }
-});
-// list of anonymous report
-app.get('/anonymousreports/:id?', (req, res) => {
-  console.log('entered');
-  const userId = req.header('userId'); // Extract the userId from request headers
-  // Check if userId header is missing or empty
-  if (!userId) {
-    return res.status(400).json({ message: 'userId header is required' });
-  }
-  // If an ID is provided in the URL, fetch a single anonymous report by that ID
-  if (req.params.id) {
-    console.log('true');
-    connection.query('SELECT * FROM anonymousReport WHERE id = ?', req.params.id, (error, results) => {
-      if (error) {
-        console.error('Error retrieving anonymous report:', error);
-        return res.status(500).json({ message: 'Internal Server Error' });
-      }
-      res.json(results);
-    });
   } else {
     console.log('false');
-    // If no ID is provided, retrieve all anonymous reports
-    connection.query('SELECT * FROM anonymousReport', (error, results) => {
+    connection.query('SELECT * FROM reportIssue', (error, results) => {
       if (error) {
-        console.error('Error retrieving anonymous reports:', error);
-        return res.status(500).json({ message: 'Internal Server Error' });
+        console.error('Error retrieving reported issues:', error);
+        return res.status(500).send('Internal Server Error');
       }
       res.json(results);
     });

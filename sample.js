@@ -491,7 +491,7 @@ app.get('/blood-requirement/:id?', (req, res) => {
   // If an ID is provided in the URL, fetch a single blood requirement case by that ID
   if (req.params.id) {
     console.log('true');
-    connection.query('SELECT * FROM bloodRequirement WHERE id = ?', req.params.id, (error, results) => {
+    connection.query('SELECT * FROM bloodRequirement WHERE userId = ?', req.params.id, (error, results) => {
       if (error) {
         console.error('Error retrieving blood requirement case:', error);
         return res.status(500).json({ message: 'Internal Server Error' });
@@ -567,7 +567,7 @@ app.get('/callback/:id?', (req, res) => {
   // Retrieve all callback requests from the database
   if (req.params.id) {
     console.log('true');
-    connection.query('SELECT * FROM callbackRequest WHERE id = ?',req.params.id, (error, results) => {
+    connection.query('SELECT * FROM callbackRequest WHERE userId = ?',req.params.id, (error, results) => {
       if (error) {
         console.error('Error retrieving callback requests:', error);
         return res.status(500).send('Internal Server Error');

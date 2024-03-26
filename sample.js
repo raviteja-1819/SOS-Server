@@ -481,7 +481,7 @@ app.get('/blood-requirements', async (req, res) => {
   }
 });
 // list of all blood requirements
-app.get('/blood-requirement/:id?', (req, res) => {
+app.get('/blood-requirements/:id?', (req, res) => {
   console.log('entered');
   const userId = req.header('userId'); // Extract the userId from request headers
   // Check if userId header is missing or empty

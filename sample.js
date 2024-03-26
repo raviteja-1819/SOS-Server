@@ -1,10 +1,12 @@
 const cluster = require('cluster');
 const numCPUs = require('os').cpus().length;
 const express = require('express');
+const multer = require('multer');
 const uuid = require('uuid');
 const cors = require('cors');
 const bodyParser = require('body-parser');
 const mysql = require('mysql2');
+const upload = multer({ dest: 'uploads/' });
 const { log } = require('console');
 const app = express();
 if (cluster.isMaster) {
@@ -20,6 +22,7 @@ if (cluster.isMaster) {
   });
 } else {
   const app = express();
+}
   // Middleware
   app.use(cors());
   app.use(function(req, res, next) {
@@ -44,100 +47,150 @@ if (cluster.isMaster) {
     }
     console.log('Connected to MySQL database.');
   });
-// Middleware to parse JSON bodies
-app.use(express.json());
-// generating the userID
-function generateUserID() {
+
+  // Middleware to parse JSON bodies
+  app.use(express.json());
+
+  // Generating the userID
+  function generateUserID() {
     const timestamp = Date.now().toString(36);
     const randomChars = Math.random().toString(36).substring(2);
     const userID = timestamp + randomChars;
     return userID.substring(0, 28).padEnd(28, '0');
   }
-//signup
-app.post('/signup', (req, res) => {
-  const {
-    firstName,
-    lastName,
-    mobileNumber,
-    email,
-    password,
-    dateOfBirth,
-    age,
-    gender,
-    bloodGroup,
-    address,
-    emergencyContact1,
-    emergencyContact2,
-    emergencyContact3,
-    alternateNumber,
-    pincode,
-    confirmPassword,
-    coordinatesLatitude,
-    coordinatesLongitude
-  } = req.body;
-  // Check if all required fields are provided
-  if (!firstName || !lastName || !mobileNumber || !email || !password || !dateOfBirth || !age || !gender || !bloodGroup || !address || !emergencyContact1 || !emergencyContact2   || !alternateNumber || !pincode || !confirmPassword || !coordinatesLatitude || !coordinatesLongitude) {
-      console.log("firstName",!firstName," \n lastName",!lastName," \n mobile",!mobileNumber," \n email", !email," \n password",!password," \n dob",!dateOfBirth," \n age",!age ," \n gender", !gender ," \n bg", !bloodGroup ," \n add", !address," \n EC1", !emergencyContact1 ," \n EC2",!emergencyContact2 ," \n Alter", !alternateNumber ," \n pin", !pincode ," \n pass", !confirmPassword ," \n lati", !coordinatesLatitude , " \n longi",!coordinatesLongitude);
+
+  // Signup route
+  
+  app.post('/signup', (req, res, next) => {
+    const {
+      firstName,
+      lastName,
+      mobileNumber,
+      email,
+      password,
+      dateOfBirth,
+      age,
+      gender,
+      bloodGroup,
+      address,
+      emergencyContact1,
+      emergencyContact2,
+      emergencyContact3,
+      alternateNumber,
+      pincode,
+      confirmPassword,
+      coordinatesLatitude,
+      coordinatesLongitude
+    } = req.body;
+  
+    const photo = req.file ? req.file.buffer : null;
+    // Check if all required fields are provided
+    if (!firstName || !lastName || !mobileNumber || !email || !password || !dateOfBirth || !age || !gender || !bloodGroup || !address || !emergencyContact1 || !emergencyContact2 || !alternateNumber || !pincode || !confirmPassword || !coordinatesLatitude || !coordinatesLongitude) {
       return res.status(400).send('All fields are required');
-  }
-  // Check if password and confirmPassword match
-  if (password !== confirmPassword) {
-    return res.status(400).send('Password and confirm password do not match');
-  }
-  // Generate 28-character userID
-  const userID = generateUserID();
-  console.log('Generated UserID:', userID);
-  // Insert user details into NewProfileSignups table
-  connection.query(
-    'INSERT INTO users (firstName, lastName, mobileNumber, email, dateOfBirth, age, gender, bloodGroup, address, userID, emergencyContact1,emergencyContact2,emergencyContact3,alternateNumber, pincode, coordinatesLatitude, coordinatesLongitude ) VALUES ( ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,?, ?, ?)',
-    [firstName, lastName, mobileNumber, email, dateOfBirth, age, gender, bloodGroup, address, userID,emergencyContact1,emergencyContact2,emergencyContact3, alternateNumber, pincode, coordinatesLatitude, coordinatesLongitude , ],
-    (error, results) => {
-      if (error) {
-        console.error('Error inserting user details into users:', error);
+    }
+  
+    // Check if password and confirmPassword match
+    if (password !== confirmPassword) {
+      return res.status(400).send('Password and confirm password do not match');
+    }
+  
+    // Generate 28-character userID
+    const userID = generateUserID();
+    console.log('Generated UserID:', userID);
+  
+    pool.getConnection((err, connection) => {
+      if (err) {
+        console.error('Error connecting to database:', err);
         return res.status(500).send('Internal Server Error');
       }
-      res.status(201).json({ message: 'Account created successfully', userID });
-    }
-  );
+  
+      // Use the connection variable here
+      connection.query(
+        'INSERT INTO users (firstName, lastName, mobileNumber, email, dateOfBirth, age, gender, bloodGroup, address, photo, userID, alternateNumber, pincode, coordinatesLatitude, coordinatesLongitude) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+        [firstName, lastName, mobileNumber, email, dateOfBirth, age, gender, bloodGroup, address, photo, userID, alternateNumber, pincode, coordinatesLatitude, coordinatesLongitude],
+        (error, results) => {
+            connection.release();
+
+            if (error) {
+                console.error('Error inserting user details into users:', error);
+                return res.status(500).send('Internal Server Error');
+            }
+
+          // Insert emergency contact information into emergencyContacts table
+          const emergencyContactData = [];
+  
+          if (emergencyContact1) {
+            emergencyContactData.push({
+              name: emergencyContact1.name,
+              relation: emergencyContact1.relation,
+              mobileNumber: emergencyContact1.mobileNumber
+            });
+          }
+  
+          if (emergencyContact2) {
+            emergencyContactData.push({
+              name: emergencyContact2.name,
+              relation: emergencyContact2.relation,
+              mobileNumber: emergencyContact2.mobileNumber
+            });
+          }
+          if (emergencyContact3) {
+            emergencyContactData.push({
+              name: emergencyContact2.name,
+              relation: emergencyContact2.relation,
+              mobileNumber: emergencyContact2.mobileNumber
+            });
+          }
+          
+          // Check if there are less than 2 emergency contacts or more than 3
+if (emergencyContactData.length < 2 || emergencyContactData.length > 3) {
+    return res.status(400).json({ error: 'At least two and no more than three emergency contacts are required' });
+  }
+// Insert emergency contact information into emergencyContacts table
+const emergencyContactPromises = emergencyContactData.map((contact) => {
+    return new Promise((resolve, reject) => {
+        const query = 'INSERT INTO emergencyContacts (userId, name, relation, mobileNumber) VALUES (?, ?, ?, ?)';
+        connection.query(query, [userID, contact.name, contact.relation, contact.mobileNumber], (error, results) => {
+            if (error) {
+                console.error('Error inserting emergency contact:', error);
+                reject(error);
+            }
+            resolve(results);
+        });
+    });
 });
+          Promise.all(emergencyContactPromises)
+            .then(() => {
+              res.status(201).json({ message: 'Account created successfully', userID });
+            })
+            .catch((error) => {
+              console.error('Error inserting emergency contacts:', error);
+              return res.status(500).json({ error: 'Internal server error' });
+            });
+        }
+      );
+    });
+  });
+
   // Login route
   app.post('/login', (req, res) => {
-    const { email, password } = req.body;
-    const query = 'SELECT * FROM users WHERE email = ? AND password = ?';
-    connection.query(query, [email, password], (err, results) => {
+    const { identifier, password } = req.body;
+    const query = 'SELECT * FROM users WHERE (email = ? OR mobileNumber = ?) AND password = ?';
+    connection.query(query, [identifier, identifier, password], (err, results) => {
       if (err) {
         console.error('Error logging in:', err);
         res.status(500).json({ message: 'Internal server error' });
         return;
       }
       if (results.length === 0) {
-        res.status(401).json({ message: 'Invalid email or password' });
+        res.status(401).json({ message: 'Invalid email/phone number or password' });
       } else {
         res.status(200).json({ message: 'Login successful', user: results[0] });
       }
     });
-  });
-// Define the validateFields middleware function
-function validateFields(req, res, next) {
-  const { userId, name, mobileNumber, place, pincode, status, coordinatesLatitude, coordinatesLongitude } = req.body;
-  if (!userId||!name || !mobileNumber || !place || !pincode || !status || !coordinatesLatitude || !coordinatesLongitude) {
-    return res.status(400).json({ message: 'All fields are required' });
-  }
-  next();
-}
-//emergency contacts
-app.post('/add-contact/:person', validateFields, (req, res) => {
-  const {userId, name, relation, mobilenumber, coordinatesLatitude, coordinatesLongitude } = req.body;
-  // Insert contact information into MySQL database
-  const query = 'INSERT INTO emergencyContacts (userId, name, relation, mobilenumber,  coordinatesLatitude, coordinatesLongitude) VALUES (?, ?, ?, ?, ?, ?)';
-  connection.query(query, [userId, name, relation, mobilenumber,  coordinatesLatitude, coordinatesLongitude], (error, results) => {
-      if (error) {
-          console.error('Error adding emergency contact:', error);
-          return res.status(500).json({ error: 'Internal server error' });
-      }
-      res.status(201).json({ message: `Emergency contact added for ${userId}` });
-  });
 });
+
+
   // Retrieve emergency contacts for a person
   app.get('/contacts', (req, res) => {
     const userId = req.header('userId');  // Extract the id parameter from the request URL
@@ -156,6 +209,14 @@ app.post('/add-contact/:person', validateFields, (req, res) => {
       res.json(results);
     });
 });
+// Define the validateFields middleware function
+function validateFields(req, res, next) {
+  const { userId, name, mobileNumber, place, pincode, status, coordinatesLatitude, coordinatesLongitude } = req.body;
+  if (!userId||!name || !mobileNumber || !place || !pincode || !status || !coordinatesLatitude || !coordinatesLongitude) {
+    return res.status(400).json({ message: 'All fields are required' });
+  }
+  next();
+}
 // POST endpoint to handle blood checkup creation
 app.post('/bloodcheckup', validateFields, (req, res, next) => {
   // Destructure fields from request body
@@ -623,24 +684,42 @@ app.get('/users/:userId?', (req, res) => {
       });
   }
 });
+// Set up multer to handle file uploads
+const storage = multer.memoryStorage();
 // list of sponsors
-app.post('/sponsors', (req, res) => {
-  const userId = req.header('userId'); // Extract the userId from request headers
+// Set storage engine
+app.post('/sponsors', upload.single('photo'), (req, res) => {
+  // Extract the userId from request headers
+  const userId = req.header('userId');
 
   // Check if userId header is missing or empty
   if (!userId) {
     return res.status(400).json({ message: 'userId header is required' });
   }
-  // Extract data from request body
+
   const { firstName, lastName, designation, area } = req.body;
+
   // Check if all required fields are provided
   if (!firstName || !lastName || !designation || !area) {
     return res.status(400).json({ message: 'All fields are required' });
   }
+
   // Prepare the SQL query to insert data into the sponsors table
-  const query = 'INSERT INTO sponsors (firstName, lastName, designation, area) VALUES (?, ?, ?, ?)';
+  let query = 'INSERT INTO sponsors (firstName, lastName, designation, area, photo) VALUES (?, ?, ?, ?, ?)';
+  const queryParams = [firstName, lastName, designation, area];
+
+  // Check if a file was uploaded
+  if (req.file) {
+    // Convert the photo buffer to base64 encoding
+    const base64Photo = req.file.buffer.toString('base64');
+    queryParams.push(base64Photo);
+  } else {
+    // If no photo was uploaded, provide a placeholder value (e.g., NULL) for the photo field
+    queryParams.push(null);
+  }
+
   // Execute the query with parameters
-  connection.query(query, [firstName, lastName, designation, area], (err, results) => {
+  connection.query(query, queryParams, (err, results) => {
     if (err) {
       console.error('Error adding sponsor:', err);
       return res.status(500).json({ message: 'Internal Server Error' });
@@ -648,6 +727,7 @@ app.post('/sponsors', (req, res) => {
     res.status(201).json({ message: 'Sponsor added successfully' });
   });
 });
+
 // to fetch all the sponsors
 app.get('/sponsors/:userId?', (req, res) => {
   console.log('entered');
@@ -689,7 +769,7 @@ app.get('/sponsors/:userId?', (req, res) => {
 
 
 // add and display partners
-app.post('/partners', (req, res) => {
+app.post('/partners', upload.single('photo'), (req, res) => {
   const userId = req.header('userId'); // Extract the userId from request headers
   // Check if userId header is missing or empty
   if (!userId) {
@@ -698,13 +778,24 @@ app.post('/partners', (req, res) => {
   // Extract data from request body
   const { name, link } = req.body;
   // Check if all required fields are provided
-  if (!name || !link ) {
+  if (!name || !link) {
     return res.status(400).json({ message: 'All fields are required' });
   }
   // Prepare the SQL query to insert data into the partners table
-  const query = 'INSERT INTO partners (name, link) VALUES (?, ?)';
+  const query = 'INSERT INTO partners (name, link, photo) VALUES (?, ?, ?)';
   // Execute the query with parameters
-  connection.query(query, [name, link], (err, results) => {
+  const queryParams = [name, link];
+  if (req.file) {
+    // Convert the photo buffer to base64 encoding
+    const base64Photo = req.file.buffer.toString('base64');
+    queryParams.push(base64Photo);
+  } else {
+    // If no photo was uploaded, provide a placeholder value (e.g., NULL) for the photo field
+    queryParams.push(null);
+  }
+
+  // Execute the query with parameters
+  connection.query(query, queryParams, (err, results) => {
     if (err) {
       console.error('Error adding partner:', err);
       return res.status(500).json({ message: 'Internal Server Error' });
@@ -821,4 +912,3 @@ const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`Server is running on port ${PORT}`);
 });
-}
